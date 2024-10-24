@@ -2,31 +2,27 @@ use crate::Token;
 use log::error;
 
 pub struct Lexer {
-	pub text: String,
+	pub tokens: Vec<Token>,
 	pos: usize,
-	current_char: Option<char>
 }
 
 impl Lexer {
 	pub fn new(text: String) -> Self {
 		let mut lexer = Self {
-			text,
+			tokens: Vec::new(),
 			pos: 0,
-			current_char: None
 		};
 
-		lexer.current_char = lexer.text.chars().next();
+		lexer.tokens = lexer.tokenize(text);
+		lexer.pos = 0;
 
 		lexer
 	}
 
 	pub fn reset(&mut self, text: String) {
-		*self = Self {
-			text: text,
-			pos: 0,
-			current_char: None
-		};
-		self.current_char = self.text.chars().next();
+		self.pos = 0;
+		self.tokens = self.tokenize(text);
+		self.pos = 0;
 	}
 
 	fn error(&self) -> ! {
@@ -34,39 +30,119 @@ impl Lexer {
 		panic!("Invalid character!");
 	}
 
-	fn advance(&mut self) {
-		self.pos += 1;
-		self.current_char = self.text.chars().nth(self.pos);
-	}
+	fn tokenize(&mut self, text: String) -> Vec<Token> {
+		let mut tokens = Vec::new();
+		let mut current_char = text.chars().peekable();
 
-	fn skip_whitespace(&mut self) {
-		while let Some(ch) = self.current_char {
-			if !ch.is_whitespace() {
-				break;
+		while let Some(&ch) = current_char.peek() {
+			if ch.is_whitespace() {
+				current_char.next();
+				continue;
 			}
-			self.advance();
+			println!("ch: {}", ch);
+
+			match ch {
+				',' => { tokens.push(Token::COMMA); current_char.next(); },
+				'{' => { tokens.push(Token::LBRACE); current_char.next(); },
+				'}' => { tokens.push(Token::RBRACE); current_char.next(); },
+				ch if ch.is_digit(10) || ch == '.' => {
+					tokens.push(Token::FLOAT(self.number(&mut current_char)));
+				},
+				ch if ch.is_alphabetic() || ch == '_' => {
+					let id = self.identifier(&mut current_char);
+					match id.as_str() {
+						"fn" => tokens.push(Token::FN),
+						_ => tokens.push(Token::IDENTIFIER(id)),
+					}
+				},
+				'+' => { tokens.push(Token::PLUS); current_char.next(); },
+				'-' => { tokens.push(Token::MINUS); current_char.next(); },
+				'*' => { tokens.push(Token::MUL); current_char.next(); },
+				'/' => { tokens.push(Token::DIV); current_char.next(); },
+				'%' => { tokens.push(Token::MOD); current_char.next(); },
+				'(' => { tokens.push(Token::LPAREN); current_char.next(); },
+				')' => { tokens.push(Token::RPAREN); current_char.next(); },
+				';' => { tokens.push(Token::SEMICOLON); current_char.next(); },
+				'&' => {
+					current_char.next();
+					if current_char.peek() == Some(&'&') {
+						tokens.push(Token::AND);
+						current_char.next();
+					} else {
+						self.error();
+					}
+				},
+				'|' => {
+                    current_char.next();
+					if current_char.peek() == Some(&'|') {
+						tokens.push(Token::OR);
+						current_char.next();
+					} else {
+						self.error();
+					}
+                },
+				'>' => {
+					current_char.next();
+					if current_char.peek() == Some(&'=') {
+						tokens.push(Token::GREATER_EQUAL);
+						current_char.next();
+					} else {
+						tokens.push(Token::GREATER);
+					}
+				},
+				'<' => {
+					current_char.next();
+					if current_char.peek() == Some(&'=') {
+						tokens.push(Token::LESS_EQUAL);
+						current_char.next();
+					} else {
+						tokens.push(Token::LESS);
+					}
+				},
+				'=' => {
+					current_char.next();
+					if current_char.peek() == Some(&'=') {
+						tokens.push(Token::EQUAL);
+						current_char.next();
+					} else {
+						tokens.push(Token::ASSIGN);
+					}
+				},
+				'!' => {
+					current_char.next();
+					if current_char.peek() == Some(&'=') {
+						tokens.push(Token::UNEQUAL);
+						current_char.next();
+					} else {
+						tokens.push(Token::NOT);
+					}
+				},
+				_ => self.error(),
+			}
 		}
+		tokens.push(Token::EOF);
+		tokens
 	}
 
-	fn number(&mut self) -> f64 {
+	fn number(&self, chars: &mut std::iter::Peekable<std::str::Chars>) -> f64 {
 		let mut result = String::new();
-		while let Some(ch) = self.current_char {
+		while let Some(&ch) = chars.peek() {
 			if ch.is_digit(10) || ch == '.' {
 				result.push(ch);
-				self.advance();
+				chars.next();
 			} else {
 				break;
 			}
 		}
 		result.parse().unwrap_or_else(|_| self.error())
 	}
-	
-	fn identifier(&mut self) -> String {
+
+	fn identifier(&self, chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
 		let mut result = String::new();
-		while let Some(ch) = self.current_char {
+		while let Some(&ch) = chars.peek() {
 			if ch.is_alphanumeric() || ch == '_' {
 				result.push(ch);
-				self.advance();
+				chars.next();
 			} else {
 				break;
 			}
@@ -75,97 +151,13 @@ impl Lexer {
 	}
 
 	pub fn get_next_token(&mut self) -> Token {
-		self.skip_whitespace();
-
-		match self.current_char {
-			Some('f') if self.peek(1) == Some('n') && (self.peek(2).map_or(true, |c| !c.is_alphanumeric())) => {
-				self.advance();
-				self.advance();
-				Token::FN
-			},
-			Some(',') => { self.advance(); Token::COMMA },
-			Some('{') => { self.advance(); Token::LBRACE },
-			Some('}') => { self.advance(); Token::RBRACE },
-
-			Some(ch) if ch.is_alphabetic() || ch == '_' => {
-				let id = self.identifier();
-				Token::IDENTIFIER(id)
-			},
-
-			Some(ch) if ch.is_digit(10) || ch == '.' => Token::FLOAT(self.number()),
-
-			Some('+') => { self.advance(); Token::PLUS },
-			Some('-') => { self.advance(); Token::MINUS },
-
-			Some('*') => { self.advance(); Token::MUL },
-			Some('/') => { self.advance(); Token::DIV },
-			Some('%') => { self.advance(); Token::MOD },
-
-			Some('(') => { self.advance(); Token::LPAREN },
-			Some(')') => { self.advance(); Token::RPAREN },
-			Some(';') => { self.advance(); Token::SEMICOLON },
-
-			Some('&') => {
-				self.advance();
-				if self.current_char == Some('&') {
-					self.advance();
-					Token::AND
-				} else {
-					self.error()
-				}
-			},
-			Some('|') => {
-				self.advance();
-				if self.current_char == Some('|') {
-					self.advance();
-					Token::OR
-				} else {
-					self.error()
-				}
-			},
-			Some('>') => {
-				self.advance();
-				if self.current_char == Some('=') {
-					self.advance();
-					Token::GREATER_EQUAL
-				} else {
-					Token::GREATER
-				}
-			},
-			Some('<') => {
-				self.advance();
-				if self.current_char == Some('=') {
-					self.advance();
-					Token::LESS_EQUAL
-				} else {
-					Token::LESS
-				}
-			},
-			Some('=') => {
-				self.advance();
-				if self.current_char == Some('=') {
-					self.advance();
-					Token::EQUAL
-				} else {
-					Token::ASSIGN
-				}
-			},
-			Some('!') => {
-				self.advance();
-				if self.current_char == Some('=') {
-					self.advance();
-					Token::UNEQUAL
-				} else {
-					Token::NOT
-				}
-			},
-			
-			None => Token::EOF,
-			_ => self.error(),
+		if self.pos < self.tokens.len() {
+			let token = self.tokens[self.pos].clone();
+			self.pos += 1;
+			token
+		} else {
+			Token::EOF
 		}
 	}
 
-	fn peek(&self, offset: usize) -> Option<char> {
-		self.text.chars().nth(self.pos + offset)
-	}
 }

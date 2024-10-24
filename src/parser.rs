@@ -208,6 +208,7 @@ impl Parser {
     fn function_call(&mut self, name: String) -> Result<AST, String> {
         self.eat(&Token::LPAREN)?;
         let mut arguments = vec![];
+
         if self.current_token != Some(Token::RPAREN) {
             arguments.push(self.expression()?);
             while self.current_token == Some(Token::COMMA) {
@@ -215,7 +216,9 @@ impl Parser {
                 arguments.push(self.expression()?);
             }
         }
+
         self.eat(&Token::RPAREN)?;
+        
         Ok(AST::with_node(
             Token::CALL,
             vec![Box::new(AST::new(Token::IDENTIFIER(name.clone()), vec![])), 

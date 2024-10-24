@@ -104,7 +104,6 @@ mod tests {
         assert_eq!(interpret("(2 + 3) * 4").unwrap(), Value::Number(20.0));
     }
 
-    // 新增测试：函数定义和调用
     #[test]
     fn test_function_definition_and_call() {
         let program = r#"
@@ -116,7 +115,7 @@ mod tests {
         assert_eq!(interpret(program).unwrap(), Value::Number(7.0));
     }
 
-    ///*
+    /*
     #[test]
     fn test_recursive_function() {
         let program = r#"
@@ -131,9 +130,9 @@ mod tests {
         "#;
         assert_eq!(interpret(program).unwrap(), Value::Number(120.0));
     }
-    //*/
+    */
     
-    // 新增测试：闭包
+    
     #[test]
     fn test_closure() {
         let program = r#"
