@@ -16,23 +16,20 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<AST, String> {
-        self.statements(false)
+        self.statements()
     }
 
-    fn statements(&mut self, is_function_body: bool) -> Result<AST, String> {
+    fn statements(&mut self) -> Result<AST, String> {
         let mut statements = vec![];
         
         while self.current_token != Some(Token::EOF) && self.current_token != Some(Token::RBRACE) {
             let stmt = self.statement()?;
-            let is_function_define = matches!(stmt.node, Some(ASTNode::FunctionDefinition { .. }));
             statements.push(Box::new(stmt));
             
-            if !is_function_body || !is_function_define {
-                if let Some(Token::SEMICOLON) = self.current_token {
-                    self.eat(&Token::SEMICOLON)?;
-                } else if self.current_token != Some(Token::RBRACE) && self.current_token != Some(Token::EOF) {
-                    return Err("Expected semicolon.".to_string());
-                }
+            if let Some(Token::SEMICOLON) = self.current_token {
+                self.eat(&Token::SEMICOLON)?;
+            } else if self.current_token != Some(Token::EOF) && self.current_token != Some(Token::RBRACE) {
+                return Err("Expected semicolon.".to_string());
             }
         }
         
@@ -42,6 +39,12 @@ impl Parser {
     fn statement(&mut self) -> Result<AST, String> {
         match self.current_token {
             Some(Token::FN) => self.function_definition(),
+            Some(Token::LBRACE) => {
+                self.eat(&Token::LBRACE)?;
+                let block = self.statements();
+                self.eat(&Token::RBRACE)?;
+                block
+            }
             _ => {
                 let mut node = self.expression()?;
 
@@ -61,35 +64,6 @@ impl Parser {
             Some(Token::FN) => self.anonymous_function(),
             _ => self.assignment(),
         }
-    }
-
-    fn anonymous_function(&mut self) -> Result<AST, String> {
-        self.eat(&Token::FN)?;
-        
-        self.eat(&Token::LPAREN)?;
-        let params = self.parameter_list()?;
-        self.eat(&Token::RPAREN)?;
-
-        let body = if self.current_token == Some(Token::LBRACE) {
-            self.eat(&Token::LBRACE)?;
-            let block = self.statements(true)?;
-            self.eat(&Token::RBRACE)?;
-            block
-        } else {
-            // 单个表达式作为函数体
-            let expr = self.expression()?;
-            AST::new(Token::STATEMENT, vec![Box::new(expr)])
-        };
-
-        Ok(AST::with_node(
-            Token::FN,
-            vec![Box::new(body.clone())],
-            ASTNode::FunctionDefinition {
-                name: None,
-                params,
-                body: Rc::new(body),
-            },
-        ))
     }
 
     fn assignment(&mut self) -> Result<AST, String> {
@@ -218,7 +192,7 @@ impl Parser {
         }
 
         self.eat(&Token::RPAREN)?;
-        
+
         Ok(AST::with_node(
             Token::CALL,
             vec![Box::new(AST::new(Token::IDENTIFIER(name.clone()), vec![])), 
@@ -254,22 +228,33 @@ impl Parser {
         let params = self.parameter_list()?;
         self.eat(&Token::RPAREN)?;
 
-        let body = if self.current_token == Some(Token::LBRACE) {
-            self.eat(&Token::LBRACE)?;
-            let block = self.statements(true)?;
-            self.eat(&Token::RBRACE)?;
-            block
-        } else {
-            // 单个表达式作为函数体
-            let expr = self.expression()?;
-            AST::new(Token::STATEMENT, vec![Box::new(expr)])
-        };
+        let body = self.statement()?;
 
         Ok(AST::with_node(
             Token::FN,
             vec![Box::new(body.clone())],
             ASTNode::FunctionDefinition {
                 name,
+                params,
+                body: Rc::new(body),
+            },
+        ))
+    }
+
+    fn anonymous_function(&mut self) -> Result<AST, String> {
+        self.eat(&Token::FN)?;
+        
+        self.eat(&Token::LPAREN)?;
+        let params = self.parameter_list()?;
+        self.eat(&Token::RPAREN)?;
+
+        let body = self.statement()?;
+
+        Ok(AST::with_node(
+            Token::FN,
+            vec![Box::new(body.clone())],
+            ASTNode::FunctionDefinition {
+                name: None,
                 params,
                 body: Rc::new(body),
             },
