@@ -8,7 +8,7 @@ use crate::token::Value;
 pub struct Function {
     pub name: Option<String>,
     pub params: Vec<String>,
-    pub body: Rc<AST>,  // 使用 Rc<AST> 而不是 Box<AST>
+    pub body: Box<AST>,
     pub closure: Rc<RefCell<Environment>>,
 }
 

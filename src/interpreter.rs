@@ -38,7 +38,7 @@ impl Interpreter {
                 let function = Rc::new(Function {
                     name: name.clone(),
                     params: params.clone(),
-                    body: Rc::clone(body),  // 克隆 Rc，而不是整个 AST
+                    body: Box::clone(body),
                     closure: self.environment.clone(),
                 });
                 let value = Value::Function(function);
@@ -122,6 +122,7 @@ impl Interpreter {
 
     fn evaluate_function_call<T: AstRef>(&mut self, function: &AST, arguments: &[T]) -> Result<Value, String> {
         let function_value = self.evaluate_expression(function)?;
+        
         if let Value::Function(func) = function_value {
             if func.params.len() != arguments.len() {
                 return Err(format!("Function expected {} arguments, but got {}", func.params.len(), arguments.len()));

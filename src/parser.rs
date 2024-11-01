@@ -215,7 +215,7 @@ impl Parser {
         Ok(AST::with_node(
             Token::CALL,
             vec![Box::new(AST::new(Token::IDENTIFIER(name.clone()), vec![])), 
-                 Box::new(AST::new(Token::STATEMENT, arguments.clone().into_iter().map(Box::new).collect()))],
+            Box::new(AST::new(Token::STATEMENT, arguments.clone().into_iter().map(Box::new).collect()))],
             ASTNode::FunctionCall {
                 function: Box::new(AST::new(Token::IDENTIFIER(name), vec![])),
                 arguments,
@@ -242,11 +242,11 @@ impl Parser {
 
         Ok(AST::with_node(
             Token::FN,
-            vec![Box::new(body.clone())],
+            vec![],
             ASTNode::FunctionDefinition {
                 name,
                 params,
-                body: Rc::new(body),
+                body: Box::new(body),
             },
         ))
     }

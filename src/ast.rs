@@ -34,9 +34,9 @@ impl fmt::Display for AST {
 #[derive(Clone, PartialEq, Debug)]
 pub enum ASTNode {
     FunctionDefinition {
-        name: Option<String>,  // None 表示匿名函数
+        name: Option<String>,
         params: Vec<String>,
-        body: Rc<AST>,  // 使用 Rc<AST> 而不是 Box<AST>
+        body: Box<AST>,
     },
     FunctionCall {
         function: Box<AST>,
