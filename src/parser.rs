@@ -189,10 +189,12 @@ impl Parser {
                 Ok(AST::new(Token::FLOAT(value), vec![]))
             },
             Some(Token::LPAREN) => {
-                self.next();
-                let node = self.expression()?;
-                self.eat(Token::RPAREN)?;
-                Ok(node)
+                let tuple = self.collect_tuple()?;
+                if tuple.len() == 1 {
+                    Ok(*tuple[0].clone())
+                } else {
+                    Ok(AST::new(Token::TUPLE, tuple))
+                }
             },
             _ => Err(format!("Unexpected token: {}!", self.cur_token_unwrap())),
         }
@@ -234,9 +236,7 @@ impl Parser {
             None
         };
 
-        self.eat(Token::LPAREN)?;
         let params = self.parameter_list()?;
-        self.eat(Token::RPAREN)?;
 
         let body = self.statement()?;
 
@@ -252,15 +252,25 @@ impl Parser {
     }
 
     fn parameter_list(&mut self) -> Result<Vec<String>, String> {
-        let mut params = Vec::new();
-        if self.current_token != Some(Token::RPAREN) {
-            params.push(self.identifier()?);
-            while self.current_token == Some(Token::COMMA) {
+        let mut params = self.collect_tuple()?;
+        Ok(params.iter().map(|x| match &x.token {Token::IDENTIFIER(name) => name.clone(), _ => x.token.clone().to_string()}).collect())
+    }
+
+    fn collect_tuple(&mut self) -> Result<Vec<Box<AST>>, String> {
+        self.eat(Token::LPAREN)?;
+
+        let mut children = vec![];
+
+        if self.cur_token_unwrap() != Token::RPAREN {
+            children.push(Box::new(self.statement().unwrap()));
+            while self.cur_token_unwrap() == Token::COMMA {
                 self.next();
-                params.push(self.identifier()?);
+                children.push(Box::new(self.statement().unwrap()));
             }
         }
-        Ok(params)
+
+        self.eat(Token::RPAREN)?;
+        Ok(children)
     }
 
     fn identifier(&mut self) -> Result<String, String> {

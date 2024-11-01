@@ -48,10 +48,5 @@ fn run_interpreter(interpreter: &mut Interpreter, text: &str) -> Result<String, 
     interpreter.parser.lexer.reset(text.to_string());
     interpreter.parser.current_token = Some(interpreter.parser.lexer.get_next_token());
     let result = interpreter.interpret()?;
-    match result {
-        Value::Number(n) => Ok(n.to_string()),
-        Value::Function(_) => Ok("Function".to_string()),
-        Value::Boolean(b) => Ok(b.to_string()),
-        Value::Null => Ok("Null".to_string()),
-    }
+    Ok(result.to_string())
 }
