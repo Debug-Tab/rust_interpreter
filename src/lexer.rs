@@ -42,31 +42,31 @@ impl Lexer {
 			println!("ch: {}", ch);
 
 			match ch {
-				',' => { tokens.push(Token::COMMA); current_char.next(); },
-				'{' => { tokens.push(Token::LBRACE); current_char.next(); },
-				'}' => { tokens.push(Token::RBRACE); current_char.next(); },
+				',' => { tokens.push(Token::Comma); current_char.next(); },
+				'{' => { tokens.push(Token::LBrace); current_char.next(); },
+				'}' => { tokens.push(Token::RBrace); current_char.next(); },
 				ch if ch.is_digit(10) || ch == '.' => {
-					tokens.push(Token::FLOAT(self.number(&mut current_char)));
+					tokens.push(Token::Float(self.number(&mut current_char)));
 				},
 				ch if ch.is_alphabetic() || ch == '_' => {
 					let id = self.identifier(&mut current_char);
 					match id.as_str() {
 						"fn" => tokens.push(Token::FN),
-						_ => tokens.push(Token::IDENTIFIER(id)),
+						_ => tokens.push(Token::Identifier(id)),
 					}
 				},
-				'+' => { tokens.push(Token::PLUS); current_char.next(); },
-				'-' => { tokens.push(Token::MINUS); current_char.next(); },
-				'*' => { tokens.push(Token::MUL); current_char.next(); },
-				'/' => { tokens.push(Token::DIV); current_char.next(); },
-				'%' => { tokens.push(Token::MOD); current_char.next(); },
-				'(' => { tokens.push(Token::LPAREN); current_char.next(); },
-				')' => { tokens.push(Token::RPAREN); current_char.next(); },
-				';' => { tokens.push(Token::SEMICOLON); current_char.next(); },
+				'+' => { tokens.push(Token::Plus); current_char.next(); },
+				'-' => { tokens.push(Token::Minus); current_char.next(); },
+				'*' => { tokens.push(Token::Mul); current_char.next(); },
+				'/' => { tokens.push(Token::Div); current_char.next(); },
+				'%' => { tokens.push(Token::Mod); current_char.next(); },
+				'(' => { tokens.push(Token::LParen); current_char.next(); },
+				')' => { tokens.push(Token::RParen); current_char.next(); },
+				';' => { tokens.push(Token::Semicolon); current_char.next(); },
 				'&' => {
 					current_char.next();
 					if current_char.peek() == Some(&'&') {
-						tokens.push(Token::AND);
+						tokens.push(Token::And);
 						current_char.next();
 					} else {
 						self.error();
@@ -75,7 +75,7 @@ impl Lexer {
 				'|' => {
                     current_char.next();
 					if current_char.peek() == Some(&'|') {
-						tokens.push(Token::OR);
+						tokens.push(Token::Or);
 						current_char.next();
 					} else {
 						self.error();
@@ -84,37 +84,37 @@ impl Lexer {
 				'>' => {
 					current_char.next();
 					if current_char.peek() == Some(&'=') {
-						tokens.push(Token::GREATER_EQUAL);
+						tokens.push(Token::GreaterEqual);
 						current_char.next();
 					} else {
-						tokens.push(Token::GREATER);
+						tokens.push(Token::Greater);
 					}
 				},
 				'<' => {
 					current_char.next();
 					if current_char.peek() == Some(&'=') {
-						tokens.push(Token::LESS_EQUAL);
+						tokens.push(Token::LessEqual);
 						current_char.next();
 					} else {
-						tokens.push(Token::LESS);
+						tokens.push(Token::Less);
 					}
 				},
 				'=' => {
 					current_char.next();
 					if current_char.peek() == Some(&'=') {
-						tokens.push(Token::EQUAL);
+						tokens.push(Token::Equal);
 						current_char.next();
 					} else {
-						tokens.push(Token::ASSIGN);
+						tokens.push(Token::Assign);
 					}
 				},
 				'!' => {
 					current_char.next();
 					if current_char.peek() == Some(&'=') {
-						tokens.push(Token::UNEQUAL);
+						tokens.push(Token::UnEqual);
 						current_char.next();
 					} else {
-						tokens.push(Token::NOT);
+						tokens.push(Token::Not);
 					}
 				},
 				_ => self.error(),

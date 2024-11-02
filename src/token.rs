@@ -7,59 +7,60 @@ use std::fmt;
 #[derive(Clone, PartialEq, Debug, Display)]
 pub enum Token {
     // 字面量
-    FLOAT(f64),
+    Float(f64),
 
-    IDENTIFIER(String),
-    TUPLE,
+    Identifier(String),
+    Tuple,
 
     // 算数运算符
-    PLUS,
-    MINUS,
+    Plus,
+    Minus,
 
-    MUL,
-    DIV,
+    Mul,
+    Div,
 
-    MOD,
+    Mod,
 
     // 逻辑运算符
-    AND,
-    OR,
-    NOT,
+    And,
+    Or,
+    Not,
 
     // 关系运算符
-    EQUAL,
-    UNEQUAL,
-    GREATER,
-    LESS,
-    GREATER_EQUAL,
-    LESS_EQUAL,
+    Equal,
+    UnEqual,
+    
+    Greater,
+    Less,
+    GreaterEqual,
+    LessEqual,
 
 
     // 赋值运算符
-    ASSIGN,
+    Assign,
     
     // 括号
-    LPAREN, 
-    RPAREN,
+    LParen, 
+    RParen,
 
     
     // 分号
-    SEMICOLON,
+    Semicolon,
 
     // 语句
-    STATEMENT,
+    Statement,
 
     // 结束符
     EOF,
 
     // 函数
     FN,
-    ARROW,
-    COMMA,
-    LBRACE,
-    RBRACE,
-    RETURN,
-    CALL,
+    Arrow,
+    Comma,
+    LBrace,
+    RBrace,
+    Return,
+    Call,
 }
 
 #[derive(Clone, PartialEq, Debug)]

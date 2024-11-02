@@ -66,12 +66,12 @@ impl Interpreter {
 
     fn evaluate_expression(&mut self, node: &AST) -> Result<Value, String> {
         match &node.token {
-            Token::CALL => {
+            Token::Call => {
                 let function = &node.children[0];
                 let arguments = &node.children[1].children;
                 self.evaluate_function_call(function, arguments.as_slice())
             },
-            Token::STATEMENT => {
+            Token::Statement => {
                 let mut result = ControlFlow::Continue(Value::Number(0.0));
                 for child in &node.children {
                     result = self.evaluate(child)?;
@@ -80,41 +80,41 @@ impl Interpreter {
                     ControlFlow::Continue(value) | ControlFlow::Return(value) => Ok(value),
                 }
             },
-            Token::ASSIGN => self.evaluate_assignment(node),
-            Token::IDENTIFIER(name) => self.get_variable_value(name),
+            Token::Assign => self.evaluate_assignment(node),
+            Token::Identifier(name) => self.get_variable_value(name),
 
-            Token::FLOAT(value) => Ok(Value::Number(*value)),
+            Token::Float(value) => Ok(Value::Number(*value)),
             
-            Token::PLUS => {
+            Token::Plus => {
                 if node.children.len() == 1 {
                     self.evaluate_unary_op(node, |v| v)
                 } else {
                     self.evaluate_binary_op(node, |a, b| Ok(a + b))
                 }
             },
-            Token::MINUS => {
+            Token::Minus => {
                 if node.children.len() == 1 {
                     self.evaluate_unary_op(node, |v| -v)
                 } else {
                     self.evaluate_binary_op(node, |a, b| Ok(a - b))
                 }
             },
-            Token::MUL => self.evaluate_binary_op(node, |a, b| Ok(a * b)),
-            Token::DIV => self.evaluate_binary_op(node, |a, b| {
+            Token::Mul => self.evaluate_binary_op(node, |a, b| Ok(a * b)),
+            Token::Div => self.evaluate_binary_op(node, |a, b| {
                 if b == 0.0 { Err("Division by zero!".to_string()) } else { Ok(a / b) }
             }),
-            Token::MOD => self.evaluate_binary_op(node, |a, b| {
+            Token::Mod => self.evaluate_binary_op(node, |a, b| {
                 if b == 0.0 { Err("Modulo by zero".to_string()) } else { Ok(a % b) }
             }),
-            Token::NOT => self.evaluate_unary_op(node, |v| if v == 0.0 { 1.0 } else { 0.0 }),
-            Token::AND => self.evaluate_logical_op(node, |a, b| a != 0.0 && b != 0.0),
-            Token::OR => self.evaluate_logical_op(node, |a, b| a != 0.0 || b != 0.0),
-            Token::EQUAL => self.evaluate_comparison_op(node, |a, b| (a - b).abs() < f64::EPSILON),
-            Token::UNEQUAL => self.evaluate_comparison_op(node, |a, b| (a - b).abs() >= f64::EPSILON),
-            Token::GREATER => self.evaluate_comparison_op(node, |a, b| a > b),
-            Token::LESS => self.evaluate_comparison_op(node, |a, b| a < b),
-            Token::GREATER_EQUAL => self.evaluate_comparison_op(node, |a, b| a >= b),
-            Token::LESS_EQUAL => self.evaluate_comparison_op(node, |a, b| a <= b),
+            Token::Not => self.evaluate_unary_op(node, |v| if v == 0.0 { 1.0 } else { 0.0 }),
+            Token::And => self.evaluate_logical_op(node, |a, b| a != 0.0 && b != 0.0),
+            Token::Or => self.evaluate_logical_op(node, |a, b| a != 0.0 || b != 0.0),
+            Token::Equal => self.evaluate_comparison_op(node, |a, b| (a - b).abs() < f64::EPSILON),
+            Token::UnEqual => self.evaluate_comparison_op(node, |a, b| (a - b).abs() >= f64::EPSILON),
+            Token::Greater => self.evaluate_comparison_op(node, |a, b| a > b),
+            Token::Less => self.evaluate_comparison_op(node, |a, b| a < b),
+            Token::GreaterEqual => self.evaluate_comparison_op(node, |a, b| a >= b),
+            Token::LessEqual => self.evaluate_comparison_op(node, |a, b| a <= b),
 
             _ => Err(format!("Unexpected token: {}!", node.token)),
         }
@@ -122,7 +122,7 @@ impl Interpreter {
 
     fn evaluate_function_call<T: AstRef>(&mut self, function: &AST, arguments: &[T]) -> Result<Value, String> {
         let function_value = self.evaluate_expression(function)?;
-        
+
         if let Value::Function(func) = function_value {
             if func.params.len() != arguments.len() {
                 return Err(format!("Function expected {} arguments, but got {}", func.params.len(), arguments.len()));
@@ -194,7 +194,7 @@ impl Interpreter {
     }
 
     fn evaluate_assignment(&mut self, node: &AST) -> Result<Value, String> {
-        if let Token::IDENTIFIER(name) = &node.children[0].token {
+        if let Token::Identifier(name) = &node.children[0].token {
             let value = self.evaluate(&node.children[1])?.unwrap();
             self.environment.borrow_mut().values.insert(name.clone(), value.clone());
             Ok(value)
