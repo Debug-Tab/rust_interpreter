@@ -2,8 +2,8 @@
 mod tests {
     use crate::lexer::Lexer;
     use crate::parser::Parser;
-    use crate::interpreter::{Interpreter};
-    use crate::token::{Value, ControlFlow};
+    use crate::interpreter::Interpreter;
+    use crate::value::Value;
 
     fn interpret(text: &str) -> Result<Value, String> {
         let lexer = Lexer::new(String::from(text));
@@ -50,36 +50,36 @@ mod tests {
 
     #[test]
     fn test_variable_operations() {
-        assert_eq!(interpret("x = 5").unwrap(), Value::Number(5.0));
-        assert_eq!(interpret("x = 5; x + 3").unwrap(), Value::Number(8.0));
-        assert_eq!(interpret("x = 5; y = 3; x * y").unwrap(), Value::Number(15.0));
-        assert_eq!(interpret("x = 5; y = 3; z = x + y; z * 2").unwrap(), Value::Number(16.0));
-        assert_eq!(interpret("x = 5; x = 10; x").unwrap(), Value::Number(10.0));
+        assert_eq!(interpret("let x; x = 5").unwrap(), Value::Number(5.0));
+        assert_eq!(interpret("let x; x = 5; x + 3").unwrap(), Value::Number(8.0));
+        assert_eq!(interpret("let x, y; x = 5; y = 3; x * y").unwrap(), Value::Number(15.0));
+        assert_eq!(interpret("let x, y, z; x = 5; y = 3; z = x + y; z * 2").unwrap(), Value::Number(16.0));
+        assert_eq!(interpret("let x; x = 5; x = 10; x").unwrap(), Value::Number(10.0));
     }
 
     #[test]
     fn test_logical_operators() {
-        assert_eq!(interpret("1 && 1").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("1 && 0").unwrap(), Value::Number(0.0));
-        assert_eq!(interpret("1 || 0").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("0 || 0").unwrap(), Value::Number(0.0));
+        assert_eq!(interpret("1 && 1").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("1 && 0").unwrap(), Value::Boolean(false));
+        assert_eq!(interpret("1 || 0").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("0 || 0").unwrap(), Value::Boolean(false));
         assert_eq!(interpret("!0").unwrap(), Value::Number(1.0));
         assert_eq!(interpret("!1").unwrap(), Value::Number(0.0));
-        assert_eq!(interpret("1 && 2 && 3 && 4 && 5").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("0 || 0 || 1 || 0 || 0").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("1 && 1 && 0 && 1 && 1").unwrap(), Value::Number(0.0));
+        assert_eq!(interpret("1 && 2 && 3 && 4 && 5").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("0 || 0 || 1 || 0 || 0").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("1 && 1 && 0 && 1 && 1").unwrap(), Value::Boolean(false));
     }
 
     #[test]
     fn test_comparison_operators() {
-        assert_eq!(interpret("1 == 1").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("1 != 2").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("2 > 1").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("1 < 2").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("2 >= 2").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("2 <= 2").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("1 < 2 && 2 < 3 && 3 < 4").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("1 < 2 && 2 < 3 && 3 > 4").unwrap(), Value::Number(0.0));
+        assert_eq!(interpret("1 == 1").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("1 != 2").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("2 > 1").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("1 < 2").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("2 >= 2").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("2 <= 2").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("1 < 2 && 2 < 3 && 3 < 4").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("1 < 2 && 2 < 3 && 3 > 4").unwrap(), Value::Boolean(false));
     }
 
     #[test]
@@ -94,8 +94,8 @@ mod tests {
 
     #[test]
     fn test_multiple_statements() {
-        assert_eq!(interpret("x = 5; y = 10; x + y").unwrap(), Value::Number(15.0));
-        assert_eq!(interpret("x = 3; x = x * 2; x + 1").unwrap(), Value::Number(7.0));
+        assert_eq!(interpret("let x, y; x = 5; y = 10; x + y").unwrap(), Value::Number(15.0));
+        assert_eq!(interpret("let x; x = 3; x = x * 2; x + 1").unwrap(), Value::Number(7.0));
     }
 
     #[test]
@@ -141,6 +141,7 @@ mod tests {
                     x + y
                 }
             };
+            let add5; 
             add5 = make_adder(5);
             add5(3)
         "#;

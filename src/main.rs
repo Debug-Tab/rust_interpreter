@@ -4,14 +4,16 @@ use env_logger::Env;
 use std::error::Error;
 
 mod token;
-mod lexer;
+mod value;
+mod control_flow;
 mod ast;
+mod lexer;
 mod parser;
 mod interpreter;
 mod function;
 mod test;
 
-use token::{Token, Value, ControlFlow};
+use token::Token;
 use lexer::Lexer;
 use parser::Parser;
 use interpreter::Interpreter;

@@ -39,7 +39,6 @@ impl Lexer {
 				current_char.next();
 				continue;
 			}
-			println!("ch: {}", ch);
 
 			match ch {
 				',' => { tokens.push(Token::Comma); current_char.next(); },
@@ -52,6 +51,9 @@ impl Lexer {
 					let id = self.identifier(&mut current_char);
 					match id.as_str() {
 						"fn" => tokens.push(Token::FN),
+						"true" => tokens.push(Token::True),
+						"false" => tokens.push(Token::False),
+						"let" => tokens.push(Token::Let),
 						_ => tokens.push(Token::Identifier(id)),
 					}
 				},

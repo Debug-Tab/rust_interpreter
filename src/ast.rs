@@ -1,6 +1,5 @@
 use crate::Token;
 use std::fmt;
-use std::rc::Rc;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct AST {
@@ -60,3 +59,4 @@ impl AstRef for Box<AST> {
         self.as_ref()
     }
 }
+

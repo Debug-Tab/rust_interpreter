@@ -1,12 +1,16 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::parser::Parser;
-use crate::token::{Token, Value, ControlFlow};
-use crate::ast::{AST, ASTNode, AstRef};
-use crate::function::{Function, Environment};
 use crate::debug;
 
+use crate::parser::Parser;
+
+use crate::token::Token;
+use crate::value::Value;
+use crate::control_flow::ControlFlow;
+
+use crate::ast::{AST, ASTNode, AstRef};
+use crate::function::{Function, Environment};
 
 pub struct Interpreter {
     pub parser: Parser,
@@ -36,7 +40,6 @@ impl Interpreter {
         match &node.node {
             Some(ASTNode::FunctionDefinition { name, params, body }) => {
                 let function = Rc::new(Function {
-                    name: name.clone(),
                     params: params.clone(),
                     body: Box::clone(body),
                     closure: self.environment.clone(),
@@ -44,7 +47,7 @@ impl Interpreter {
                 let value = Value::Function(function);
                 
                 if let Some(name) = name {
-                    self.environment.borrow_mut().values.insert(name.clone(), value.clone());
+                    self.environment.borrow_mut().define(name.clone(), value.clone());
                 }
                 
                 Ok(ControlFlow::Continue(value))
@@ -81,9 +84,19 @@ impl Interpreter {
                 }
             },
             Token::Assign => self.evaluate_assignment(node),
+            Token::Let => self.declare_variables(node),
             Token::Identifier(name) => self.get_variable_value(name),
 
             Token::Float(value) => Ok(Value::Number(*value)),
+            Token::Tuple => {
+                let mut tuple = vec![];
+                for child in &node.children {
+                    tuple.push(self.evaluate_expression(child).unwrap());
+                }
+                Ok(Value::Tuple(tuple))
+            },
+            Token::True => Ok(Value::Boolean(true)),
+            Token::False => Ok(Value::Boolean(false)),
             
             Token::Plus => {
                 if node.children.len() == 1 {
@@ -99,20 +112,27 @@ impl Interpreter {
                     self.evaluate_binary_op(node, |a, b| Ok(a - b))
                 }
             },
+
             Token::Mul => self.evaluate_binary_op(node, |a, b| Ok(a * b)),
             Token::Div => self.evaluate_binary_op(node, |a, b| {
                 if b == 0.0 { Err("Division by zero!".to_string()) } else { Ok(a / b) }
             }),
+
             Token::Mod => self.evaluate_binary_op(node, |a, b| {
                 if b == 0.0 { Err("Modulo by zero".to_string()) } else { Ok(a % b) }
             }),
+
             Token::Not => self.evaluate_unary_op(node, |v| if v == 0.0 { 1.0 } else { 0.0 }),
-            Token::And => self.evaluate_logical_op(node, |a, b| a != 0.0 && b != 0.0),
-            Token::Or => self.evaluate_logical_op(node, |a, b| a != 0.0 || b != 0.0),
+
+            Token::And => self.evaluate_logical_op(node),
+            Token::Or => self.evaluate_logical_op(node),
+
             Token::Equal => self.evaluate_comparison_op(node, |a, b| (a - b).abs() < f64::EPSILON),
             Token::UnEqual => self.evaluate_comparison_op(node, |a, b| (a - b).abs() >= f64::EPSILON),
+
             Token::Greater => self.evaluate_comparison_op(node, |a, b| a > b),
             Token::Less => self.evaluate_comparison_op(node, |a, b| a < b),
+
             Token::GreaterEqual => self.evaluate_comparison_op(node, |a, b| a >= b),
             Token::LessEqual => self.evaluate_comparison_op(node, |a, b| a <= b),
 
@@ -170,19 +190,31 @@ impl Interpreter {
         let value = self.evaluate(&node.children[0])?;
         match value.unwrap() {
             Value::Number(v) => Ok(Value::Number(op(v))),
+            Value::Boolean(b) => Ok(Value::Boolean(if op(if b {1.0} else {0.0})!=0.0 {true} else {false})),
             _ => Err("Invalid operand for unary operation".to_string()),
         }
     }
 
-    fn evaluate_logical_op<F>(&mut self, node: &AST, op: F) -> Result<Value, String>
-    where
-        F: FnOnce(f64, f64) -> bool,
-    {
-        let left = self.evaluate(&node.children[0])?;
-        let right = self.evaluate(&node.children[1])?;
-        match (left.unwrap(), right.unwrap()) {
-            (Value::Number(left), Value::Number(right)) => Ok(Value::Number(if op(left, right) { 1.0 } else { 0.0 })),
-            _ => Err("Invalid operands for logical operation".to_string()),
+    fn evaluate_logical_op(&mut self, node: &AST) -> Result<Value, String> {
+        match &node.token {
+            Token::And => {
+                if self.evaluate(&node.children[0])?.into() {
+                    if self.evaluate(&node.children[1])?.into() {
+                        return Ok(Value::Boolean(true))
+                    }
+                }
+                return Ok(Value::Boolean(false))
+            },
+            Token::Or => {
+                if self.evaluate(&node.children[0])?.into() {
+                    return Ok(Value::Boolean(true))
+                }
+                if self.evaluate(&node.children[1])?.into() {
+                    return Ok(Value::Boolean(true))
+                } 
+                return Ok(Value::Boolean(false))
+            },
+            _ => Err(format!("[evaluate_logical_op] The AST that should not call this function: {}", &node))
         }
     }
 
@@ -190,16 +222,34 @@ impl Interpreter {
     where
         F: FnOnce(f64, f64) -> bool,
     {
-        self.evaluate_logical_op(node, op)
+        let left = self.evaluate(&node.children[0])?;
+        let right = self.evaluate(&node.children[1])?;
+        match (left.unwrap(), right.unwrap()) {
+            (Value::Number(left), Value::Number(right)) => Ok(Value::Boolean(op(left, right))),
+            (Value::Boolean(left), Value::Boolean(right)) => Ok(Value::Boolean(op(if left {1.0} else {0.0}, if right {1.0} else {0.0}))),
+            _ => Err("Invalid operands for logical operation".to_string()),
+        }
+    }
+
+    fn declare_variables(&mut self, node: &AST) -> Result<Value, String> {
+        for variable in &node.children {
+            if let Token::Identifier(name) = &variable.token {
+                self.environment.borrow_mut().values.insert(name.clone(), Value::Null);
+            } else {
+                return Err(format!("Invalid assignment to: {}.", variable.token))
+            }
+        }
+        Ok(Value::Null)
+        
     }
 
     fn evaluate_assignment(&mut self, node: &AST) -> Result<Value, String> {
         if let Token::Identifier(name) = &node.children[0].token {
             let value = self.evaluate(&node.children[1])?.unwrap();
-            self.environment.borrow_mut().values.insert(name.clone(), value.clone());
+            self.environment.borrow_mut().set(name.clone(), value.clone())?;
             Ok(value)
         } else {
-            Err(format!("Invalid assignment to: {}", node.children[0].token))
+            Err(format!("Invalid assignment to: {}.", node.children[0].token))
         }
     }
 

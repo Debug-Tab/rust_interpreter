@@ -2,7 +2,6 @@ use crate::lexer::Lexer;
 use crate::token::Token;
 use crate::ast::AST;
 use crate::ast::ASTNode;
-use std::rc::Rc;
 
 pub struct Parser {
 	pub lexer: Lexer,
@@ -38,6 +37,7 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<AST, String> {
+        println!("{:?}", self.lexer.tokens.clone());
         self.statements()
     }
 
@@ -51,7 +51,7 @@ impl Parser {
             if let Some(Token::Semicolon) = self.current_token {
                 self.next();
             } else if self.current_token != Some(Token::EOF) && self.current_token != Some(Token::RBrace) {
-                return Err("Expected semicolon.".to_string());
+                return Err(format!("Expected semicolon, found: {}!", self.cur_token_unwrap()));
             }
         }
         
@@ -61,6 +61,12 @@ impl Parser {
     fn statement(&mut self) -> Result<AST, String> {
         match self.current_token {
             Some(Token::FN) => self.function_definition(),
+            Some(Token::Let) => {
+                self.next();
+                let variables = self.tuple_content();
+
+                Ok(AST::new(Token::Let, variables))
+            },
             Some(Token::LBrace) => {
                 self.next();
                 let block = self.statements();
@@ -172,23 +178,30 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<AST, String> {
-        match &self.current_token {
-            Some(Token::Identifier(name)) => {
-                let name = name.clone();
+        let token = self.cur_token_unwrap();
+
+        match token.clone() {
+            Token::Identifier(name) => {
                 self.next();
+
                 if self.current_token == Some(Token::LParen) {
-                    // 函数调用
                     self.function_call(name)
                 } else {
-                    Ok(AST::new(Token::Identifier(name), vec![]))
+                    Ok(AST::new(token, vec![]))
                 }
             },
-            Some(Token::Float(value)) => {
-                let value = *value;
+
+            Token::Float(_) => {
                 self.next();
-                Ok(AST::new(Token::Float(value), vec![]))
+                Ok(AST::new(token, vec![]))
             },
-            Some(Token::LParen) => {
+
+            Token::True | Token::False => {
+                self.next();
+                Ok(AST::new(token, vec![]))
+            },
+
+            Token::LParen => {
                 let tuple = self.collect_tuple()?;
                 if tuple.len() == 1 {
                     Ok(*tuple[0].clone())
@@ -252,34 +265,48 @@ impl Parser {
     }
 
     fn parameter_list(&mut self) -> Result<Vec<String>, String> {
-        let mut params = self.collect_tuple()?;
-        Ok(params.iter().map(|x| match &x.token {Token::Identifier(name) => name.clone(), _ => x.token.clone().to_string()}).collect())
+        let params = self.collect_tuple()?;
+        let mut result: Vec<String> = vec![];
+        for i in params {
+            match i.token {
+                Token::Identifier(name) => result.push(name.clone()),
+                _ => return Err(format!("Parameter expected variable name, found: {}!", i))
+            }
+        }
+        Ok(result)
     }
 
     fn collect_tuple(&mut self) -> Result<Vec<Box<AST>>, String> {
         self.eat(Token::LParen)?;
 
-        let mut children = vec![];
+        let tuple = self.tuple_content();
+
+        self.eat(Token::RParen)?;
+        Ok(tuple)
+    }
+
+    fn tuple_content(&mut self) -> Vec<Box<AST>> {
+        let mut tuple = vec![];
 
         if self.cur_token_unwrap() != Token::RParen {
-            children.push(Box::new(self.statement().unwrap()));
+            tuple.push(Box::new(self.statement().unwrap()));
             while self.cur_token_unwrap() == Token::Comma {
                 self.next();
-                children.push(Box::new(self.statement().unwrap()));
+                tuple.push(Box::new(self.statement().unwrap()));
             }
         }
 
-        self.eat(Token::RParen)?;
-        Ok(children)
+        tuple
     }
 
+    /*
     fn identifier(&mut self) -> Result<String, String> {
-        if let Some(Token::Identifier(name)) = &self.current_token {
-            let name = name.clone();
+        if let Token::Identifier(name) = self.cur_token_unwrap() {
             self.next();
             Ok(name)
         } else {
-            Err("Expected identifier".to_string())
+            Err(format!("Expected identifier, found: {:?}!", self.cur_token_clone()))
         }
     }
+     */
 }
