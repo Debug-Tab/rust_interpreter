@@ -1,7 +1,8 @@
 use crate::lexer::Lexer;
 use crate::token::Token;
-use crate::ast::AST;
-use crate::ast::ASTNode;
+use crate::ast_node::ASTNode;
+
+use crate::debug;
 
 pub struct Parser {
 	pub lexer: Lexer,
@@ -36,12 +37,12 @@ impl Parser {
         self.cur_token_clone()
     }
 
-    pub fn parse(&mut self) -> Result<AST, String> {
-        println!("{:?}", self.lexer.tokens.clone());
+    pub fn parse(&mut self) -> Result<ASTNode, String> {
+        debug!("{:?}", self.lexer.tokens.clone());
         self.statements()
     }
 
-    fn statements(&mut self) -> Result<AST, String> {
+    fn statements(&mut self) -> Result<ASTNode, String> {
         let mut statements = vec![];
         
         while self.current_token != Some(Token::EOF) && self.current_token != Some(Token::RBrace) {
@@ -55,31 +56,76 @@ impl Parser {
             }
         }
         
-        Ok(AST::new(Token::Statement, statements))
+        Ok(ASTNode::Block { statements })
     }
 
-    fn statement(&mut self) -> Result<AST, String> {
+    fn statement(&mut self) -> Result<ASTNode, String> {
+        debug!("{:?}", self.cur_token_clone());
+
         match self.current_token {
             Some(Token::FN) => self.function_definition(),
+
+            Some(Token::If) => {
+                self.next();
+                let condition = Box::new(self.expression()?);
+                let true_branch = Box::new(self.statement()?);
+                let mut false_branch = None;
+                if self.current_token == Some(Token::Else) {
+                    self.next();
+                    false_branch = Some(Box::new(self.statement()?));
+                }
+                Ok(ASTNode::Conditional { condition, true_branch, false_branch })
+            },
+
+            Some(Token::While) => {
+                self.next();
+                let condition = Box::new(self.expression()?);
+                let body = Box::new(self.statement()?);
+                Ok(ASTNode::Loop { condition, body })
+            }
+
+            Some(Token::Return) => {
+                self.next();
+                Ok(ASTNode::Return(self.statement()?.into()))
+            },
+
             Some(Token::Let) => {
                 self.next();
-                let variables = self.tuple_content();
+                let variables = self.identifier_list(false)?;
 
-                Ok(AST::new(Token::Let, variables))
+                Ok(ASTNode::Let { variables })
             },
+
             Some(Token::LBrace) => {
                 self.next();
                 let block = self.statements();
                 self.eat(Token::RBrace)?;
                 block
-            }
+            },
+
             _ => {
                 let mut node = self.expression()?;
-
-                if let Some(Token::Assign) = self.current_token {
+                
+                if self.current_token == Some(Token::Assign) {
                     self.eat(Token::Assign)?;
-                    let expr = self.statement()?;
-                    node = AST::new(Token::Assign, vec![Box::new(node), Box::new(expr)]);
+                    let value = Box::new(self.statement()?);
+
+                    match node {
+                        ASTNode::Identifier(name) => {
+                            node = ASTNode::Assignment { name, value };
+                        },
+                        _ => {
+                            return Err(format!("Invalid assignment to: {:?}!", node.clone()));
+                        }
+                    }
+                    
+                } else if self.current_token == Some(Token::Question) {
+                    self.eat(Token::Question)?;
+                    let left = self.statement()?;
+                    self.eat(Token::Colon)?;
+                    let right = self.statement()?;
+
+                    node = ASTNode::Conditional { condition: Box::new(node), true_branch: Box::new(left), false_branch: Some(Box::new(right)) };
                 }
 
                 Ok(node)
@@ -87,97 +133,97 @@ impl Parser {
         }
     }
 
-    fn expression(&mut self) -> Result<AST, String> {
+    fn expression(&mut self) -> Result<ASTNode, String> {
         self.assignment()
     }
 
-    fn assignment(&mut self) -> Result<AST, String> {
+    fn assignment(&mut self) -> Result<ASTNode, String> {
         self.logical_or()
     }
 
-    fn logical_or(&mut self) -> Result<AST, String> {
+    fn logical_or(&mut self) -> Result<ASTNode, String> {
         let mut node = self.logical_and()?;
 
         while let Some(Token::Or) = self.current_token {
             self.next();
             let right = self.logical_and()?;
-            node = AST::new(Token::Or, vec![Box::new(node), Box::new(right)]);
+            node = ASTNode::LogicalOperation { operator: Token::Or, left: Box::new(node), right: Box::new(right) };
         }
 
         Ok(node)
     }
 
-    fn logical_and(&mut self) -> Result<AST, String> {
+    fn logical_and(&mut self) -> Result<ASTNode, String> {
         let mut node = self.equality()?;
 
         while let Some(Token::And) = self.current_token {
             self.next();
             let right = self.equality()?;
-            node = AST::new(Token::And, vec![Box::new(node), Box::new(right)]);
+            node = ASTNode::LogicalOperation { operator: Token::And, left: Box::new(node), right: Box::new(right) };
         }
 
         Ok(node)
     }
 
-    fn equality(&mut self) -> Result<AST, String> {
+    fn equality(&mut self) -> Result<ASTNode, String> {
         let mut node = self.relational()?;
 
         while let token @ (Token::Equal | Token::UnEqual) = self.cur_token_unwrap() {
             self.next();
             let right = self.relational()?;
-            node = AST::new(token, vec![Box::new(node), Box::new(right)]);
+            node = ASTNode::LogicalOperation { operator: token, left: Box::new(node), right: Box::new(right) };
         }
 
         Ok(node)
     }
 
-    fn relational(&mut self) -> Result<AST, String> {
+    fn relational(&mut self) -> Result<ASTNode, String> {
         let mut node = self.additive_expression()?;
 
         while let token @ (Token::Greater | Token::Less | Token::GreaterEqual | Token::LessEqual) = self.cur_token_unwrap() {
             self.next();
             let right = self.additive_expression()?;
-            node = AST::new(token, vec![Box::new(node), Box::new(right)]);
+            node = ASTNode::LogicalOperation { operator: token, left: Box::new(node), right: Box::new(right) };
         }
 
         Ok(node)
     }
 
-    fn additive_expression(&mut self) -> Result<AST, String> {
+    fn additive_expression(&mut self) -> Result<ASTNode, String> {
         let mut node = self.multiplicative_expression()?;
 
         while let token @ (Token::Plus | Token::Minus) = self.cur_token_unwrap() {
             self.next();
             let right = self.multiplicative_expression()?;
-            node = AST::new(token, vec![Box::new(node), Box::new(right)]);
+            node = ASTNode::BinaryOperation { operator: token, left: node.into(), right: right.into() };
         }
 
         Ok(node)
     }
 
-    fn multiplicative_expression(&mut self) -> Result<AST, String> {
+    fn multiplicative_expression(&mut self) -> Result<ASTNode, String> {
         let mut node = self.unary_expression()?;
 
         while let token @ (Token::Mul | Token::Div | Token::Mod) = self.cur_token_unwrap() {
             self.next();
             let right = self.unary_expression()?;
-            node = AST::new(token, vec![Box::new(node), Box::new(right)]);
+            node = ASTNode::BinaryOperation { operator: token, left: node.into(), right: right.into() };
         }
 
         Ok(node)
     }
 
-    fn unary_expression(&mut self) -> Result<AST, String> {
+    fn unary_expression(&mut self) -> Result<ASTNode, String> {
         if let token @ (Token::Plus | Token::Minus | Token::Not) = self.cur_token_unwrap() {
             self.next();
             let expr = self.unary_expression()?;
-            Ok(AST::new(token, vec![Box::new(expr)]))
+            Ok(ASTNode::UnaryOperation { operator: token, operand: Box::new(expr) })
         } else {
             self.primary()
         }
     }
 
-    fn primary(&mut self) -> Result<AST, String> {
+    fn primary(&mut self) -> Result<ASTNode, String> {
         let token = self.cur_token_unwrap();
 
         match token.clone() {
@@ -187,33 +233,29 @@ impl Parser {
                 if self.current_token == Some(Token::LParen) {
                     self.function_call(name)
                 } else {
-                    Ok(AST::new(token, vec![]))
+                    Ok(ASTNode::Identifier(name))
                 }
             },
 
-            Token::Float(_) => {
+            Token::Float(_) | Token::String(_) | Token::True | Token::False | Token::Null => {
                 self.next();
-                Ok(AST::new(token, vec![]))
-            },
-
-            Token::True | Token::False => {
-                self.next();
-                Ok(AST::new(token, vec![]))
+                Ok(ASTNode::Literal(token.to_value()?))
             },
 
             Token::LParen => {
-                let tuple = self.collect_tuple()?;
+                let tuple = self.collect_tuple(true)?;
                 if tuple.len() == 1 {
                     Ok(*tuple[0].clone())
                 } else {
-                    Ok(AST::new(Token::Tuple, tuple))
+                    Ok(ASTNode::Tuple(tuple))
                 }
             },
-            _ => Err(format!("Unexpected token: {}!", self.cur_token_unwrap())),
+            _ => Err(format!("[Parser] Unexpected token: {}!", self.cur_token_unwrap())),
         }
     }
 
-    fn function_call(&mut self, name: String) -> Result<AST, String> {
+
+    fn function_call(&mut self, name: String) -> Result<ASTNode, String> {
         self.eat(Token::LParen)?;
         let mut arguments = vec![];
 
@@ -227,18 +269,15 @@ impl Parser {
 
         self.eat(Token::RParen)?;
 
-        Ok(AST::with_node(
-            Token::Call,
-            vec![Box::new(AST::new(Token::Identifier(name.clone()), vec![])), 
-            Box::new(AST::new(Token::Statement, arguments.clone().into_iter().map(Box::new).collect()))],
+        Ok(
             ASTNode::FunctionCall {
-                function: Box::new(AST::new(Token::Identifier(name), vec![])),
+                function: Some(name),
                 arguments,
-            },
-        ))
+            }
+        )
     }
 
-    fn function_definition(&mut self) -> Result<AST, String> {
+    fn function_definition(&mut self) -> Result<ASTNode, String> {
         self.eat(Token::FN)?;
         
         let name = if let Some(Token::Identifier(name)) = &self.current_token {
@@ -249,43 +288,36 @@ impl Parser {
             None
         };
 
-        let params = self.parameter_list()?;
+        let params = self.identifier_list(true)?;
+        debug!("Params: {:?}", params);
 
         let body = self.statement()?;
 
-        Ok(AST::with_node(
-            Token::FN,
-            vec![],
-            ASTNode::FunctionDefinition {
+        Ok(ASTNode::FunctionDefinition {
                 name,
                 params,
                 body: Box::new(body),
             },
-        ))
+        )
     }
 
-    fn parameter_list(&mut self) -> Result<Vec<String>, String> {
-        let params = self.collect_tuple()?;
+    fn identifier_list(&mut self, need_paren: bool) -> Result<Vec<String>, String> {
+        let params = self.collect_tuple(need_paren)?;
         let mut result: Vec<String> = vec![];
         for i in params {
-            match i.token {
-                Token::Identifier(name) => result.push(name.clone()),
-                _ => return Err(format!("Parameter expected variable name, found: {}!", i))
+            match *i {
+                ASTNode::Identifier(name) => result.push(name.clone()),
+                _ => return Err(format!("Expected variable name, found: {:?}!", i))
             }
         }
         Ok(result)
     }
 
-    fn collect_tuple(&mut self) -> Result<Vec<Box<AST>>, String> {
-        self.eat(Token::LParen)?;
+    fn collect_tuple(&mut self, need_paren: bool) -> Result<Vec<Box<ASTNode>>, String> {
+        if need_paren { 
+            self.eat(Token::LParen)?;
+        }
 
-        let tuple = self.tuple_content();
-
-        self.eat(Token::RParen)?;
-        Ok(tuple)
-    }
-
-    fn tuple_content(&mut self) -> Vec<Box<AST>> {
         let mut tuple = vec![];
 
         if self.cur_token_unwrap() != Token::RParen {
@@ -296,7 +328,10 @@ impl Parser {
             }
         }
 
-        tuple
+        if need_paren { 
+            self.eat(Token::RParen)?;
+        }
+        Ok(tuple)
     }
 
     /*

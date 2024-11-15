@@ -1,15 +1,18 @@
 use derive_more::Display;
+use crate::value::Value;
 
 #[derive(Clone, PartialEq, Debug, Display)]
 pub enum Token {
     // 字面量
     Float(f64),
+    Tuple,
+    String(String),
 
     Identifier(String),
-    Tuple,
 
     True,
     False,
+    Null,
 
     // 算数运算符
     Plus,
@@ -61,4 +64,24 @@ pub enum Token {
     RBrace,
     Return,
     Call,
+
+    Question,
+    Colon,
+    
+    If,
+    Else,
+    While,
+}
+
+impl Token {
+    pub fn to_value(&self) -> Result<Value, String> {
+        Ok(match self {
+            Token::Float(v) => Value::Number(*v),
+            Token::String(str) => Value::String(str.clone()),
+            Token::True => Value::Boolean(true),
+            Token::False => Value::Boolean(false),
+            Token::Null => Value::Null,
+            _ => return Err(format!("Could not convert this to Value: {:?}", self.clone()))
+        })
+    }
 }

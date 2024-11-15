@@ -6,7 +6,7 @@ mod tests {
     use crate::value::Value;
 
     fn interpret(text: &str) -> Result<Value, String> {
-        let lexer = Lexer::new(String::from(text));
+        let lexer = Lexer::new(String::from(text))?;
         let parser = Parser::new(lexer);
         let mut interpreter = Interpreter::new(parser);
         interpreter.interpret()
@@ -63,8 +63,8 @@ mod tests {
         assert_eq!(interpret("1 && 0").unwrap(), Value::Boolean(false));
         assert_eq!(interpret("1 || 0").unwrap(), Value::Boolean(true));
         assert_eq!(interpret("0 || 0").unwrap(), Value::Boolean(false));
-        assert_eq!(interpret("!0").unwrap(), Value::Number(1.0));
-        assert_eq!(interpret("!1").unwrap(), Value::Number(0.0));
+        assert_eq!(interpret("!true").unwrap(), Value::Boolean(false));
+        assert_eq!(interpret("!false").unwrap(), Value::Boolean(true));
         assert_eq!(interpret("1 && 2 && 3 && 4 && 5").unwrap(), Value::Boolean(true));
         assert_eq!(interpret("0 || 0 || 1 || 0 || 0").unwrap(), Value::Boolean(true));
         assert_eq!(interpret("1 && 1 && 0 && 1 && 1").unwrap(), Value::Boolean(false));

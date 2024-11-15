@@ -1,13 +1,13 @@
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use crate::ast::AST;
+use crate::ast_node::ASTNode;
 use crate::value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Function {
     pub params: Vec<String>,
-    pub body: Box<AST>,
+    pub body: Box<ASTNode>,
     pub closure: Rc<RefCell<Environment>>,
 }
 

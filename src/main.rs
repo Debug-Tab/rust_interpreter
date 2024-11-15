@@ -6,7 +6,7 @@ use std::error::Error;
 mod token;
 mod value;
 mod control_flow;
-mod ast;
+mod ast_node;
 mod lexer;
 mod parser;
 mod interpreter;
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // 初始化日志
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
 
-    let lexer = Lexer::new(String::new());
+    let lexer = Lexer::new(String::new())?;
     let parser = Parser::new(lexer);
     let mut interpreter = Interpreter::new(parser);
 
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_interpreter(interpreter: &mut Interpreter, text: &str) -> Result<String, String> {
-    interpreter.parser.lexer.reset(text.to_string());
+    interpreter.parser.lexer.reset(text.to_string())?;
     interpreter.parser.current_token = Some(interpreter.parser.lexer.get_next_token());
     let result = interpreter.interpret()?;
     Ok(result.to_string())
