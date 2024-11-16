@@ -52,3 +52,4 @@ fn run_interpreter(interpreter: &mut Interpreter, text: &str) -> Result<String, 
     let result = interpreter.interpret()?;
     Ok(result.to_string())
 }
+
