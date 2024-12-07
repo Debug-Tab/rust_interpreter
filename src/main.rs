@@ -1,8 +1,10 @@
 use log::{error, debug};
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, Write};
 use env_logger::Env;
 use std::error::Error;
 use std::fs;
+use std::path::Path;
+use std::ffi::OsStr;
 use clap::{Parser, Subcommand};
 
 mod token;
@@ -24,26 +26,43 @@ use interpreter::Interpreter;
 #[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
     Loop,
 
-    Execute { input: String },
+    Run { 
+        input: String
+    },
 
-    Serialize {
+    Build {
         #[arg(required = true)]
         input: String,
-        #[arg(short = 's', long = "serialize")]
-        output: String,
+        #[arg(required = false)]
+        output: Option<String>,
     },
-    
-    Deserialize {
-        #[arg(required = true)]
-        input: String,
-    },
+}
+
+fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
+    loop {
+        let mut text = String::new();
+
+        print!("> ");
+        io::stdout().flush()?;
+
+        io::stdin().read_line(&mut text)?;
+        
+        if text.trim().is_empty() {
+            continue;
+        }
+
+        match interpreter.run_code(text) {
+            Ok(result) => println!("{}", result),
+            Err(e) => error!("Error: {}", e),
+        }
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -54,68 +73,83 @@ fn main() -> Result<(), Box<dyn Error>> {
     interpreter.init().expect("Init Error: ");
 
     let cli = Cli::parse();
+    if let Some(command) = cli.command {
+        match command {
+            Commands::Loop => {
+                input_loop(&mut interpreter)
+            },
 
-    match cli.command {
-        Commands::Loop => {
-            loop {
-                let mut text = String::new();
-        
-                print!("> ");
-                io::stdout().flush()?;
-        
-                io::stdin().read_line(&mut text)?;
+            Commands::Run { input } => {
+                let path = Path::new(&input);
+
+                if path.extension() == Some(OsStr::new("lim")) {
+                    let bytes = fs::read(input)?;
+
+                    match interpreter.evaluate(&bincode::deserialize(&bytes[..]).unwrap()) {
+                        Ok(result) => println!("{}", result.unwrap()),
+                        Err(e) => error!("Error: {}", e),
+                    }
                 
-                if text.trim().is_empty() {
-                    continue;
+                } else {
+                    let text = std::fs::read_to_string(input)?;
+
+                    match interpreter.run_code(text) {
+                        Ok(result) => println!("{}", result),
+                        Err(e) => error!("Error: {}", e),
+                    }
                 }
-        
-                match interpreter.run_code(text) {
-                    Ok(result) => println!("{}", result),
-                    Err(e) => error!("Error: {}", e),
-                }
-            }
-        },
-        Commands::Execute { input } => {
-            let text = std::fs::read_to_string(input)?;
 
-            match interpreter.run_code(text) {
-                Ok(result) => println!("{}", result),
-                Err(e) => error!("Error: {}", e),
-            }
+                Ok(())
+            },
 
-            Ok(())
-        },
-        Commands::Serialize { input, output } => {
-            let text = std::fs::read_to_string(input)?;
-            let mut parser = crate::parser::Parser::new();
+            Commands::Build { input, output } => {
+                let text = std::fs::read_to_string(&input)?;
+                let mut parser = crate::parser::Parser::new();
 
-            if let Err(e) = parser.reset(text) {
-                error!("Error: {}", e);
-                return Err(e.into());
-            }
-
-            match parser.parse() {
-                Ok(result) => {
-                    let output_file = fs::File::create(output)?;
-                    let mut writer = std::io::BufWriter::new(output_file);
-                    let bytes = bincode::serialize(&result)?;
-                    writer.write_all(&bytes[..])?;
-                },
-                Err(e) => {
+                if let Err(e) = parser.reset(text) {
                     error!("Error: {}", e);
                     return Err(e.into());
                 }
-            }
 
-            Ok(())
-        },
-        Commands::Deserialize { input } => {
-            
-            Ok(())
-        },
+                match parser.parse() {
+                    Ok(result) => {
+                        let path = match output {
+                            Some(path) => {
+                                path.clone()
+                            },
+                            None => {
+                                let path = Path::new(&input);
+                                let name = path
+                                                    .file_stem()
+                                                    .expect("No output file name.")
+                                                    .to_str()
+                                                    .expect("Cannot convert output file name to str.");
+                                
+                                path
+                                    .join("..")
+                                    .join(format!("{}.lim", name))
+                                    .to_str()
+                                    .expect("Cannot convert output path to str.")
+                                    .to_string()
+                                
+                            }
+                        };
+                        let output_file = fs::File::create(path)?;
+                        let mut writer = std::io::BufWriter::new(output_file);
+                        let bytes = bincode::serialize(&result)?;
+                        writer.write_all(&bytes[..])?;
+                    },
+                    Err(e) => {
+                        error!("Error: {}", e);
+                        return Err(e.into());
+                    }
+                }
 
+                Ok(())
+            },
+        }
+    } else {
+        input_loop(&mut interpreter)
     }
-
-    
 }
 

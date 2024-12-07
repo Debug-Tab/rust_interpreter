@@ -42,7 +42,7 @@ impl Interpreter {
         Ok(self.evaluate(&ast)?.unwrap())
     }
 
-    fn evaluate(&mut self, node: &ASTNode) -> Result<ControlFlow, String> {
+    pub fn evaluate(&mut self, node: &ASTNode) -> Result<ControlFlow, String> {
         let result = match node {
             ASTNode::Block { statements } => {
                 let mut result = ControlFlow::Continue(Value::Null);
