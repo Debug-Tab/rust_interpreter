@@ -1,15 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use crate::lexer::Lexer;
-    use crate::parser::Parser;
     use crate::interpreter::Interpreter;
     use crate::value::Value;
 
     fn interpret(text: &str) -> Result<Value, String> {
-        let lexer = Lexer::new(String::from(text))?;
-        let parser = Parser::new(lexer);
-        let mut interpreter = Interpreter::new(parser);
-        interpreter.interpret()
+        let mut interpreter = Interpreter::new();
+        interpreter.run_code(text.to_string())
     }
 
     fn assert_float_eq(a: f64, b: f64) {
@@ -24,12 +20,7 @@ mod tests {
         assert_eq!(interpret("14 + 2 * 3 - 6 / 2").unwrap(), Value::Number(17.0));
         assert_eq!(interpret("10 % 3").unwrap(), Value::Number(1.0));
         assert_eq!(interpret("22 % 5").unwrap(), Value::Number(2.0));
-        
-        if let Value::Number(result) = interpret("0.1 + 0.2").unwrap() {
-            assert_float_eq(result, 0.3);
-        } else {
-            panic!("Expected Number value");
-        }
+        assert_float_eq(interpret("0.1 + 0.2").unwrap().to_number().unwrap(), 0.3);
     }
 
     #[test]
@@ -50,11 +41,11 @@ mod tests {
 
     #[test]
     fn test_variable_operations() {
-        assert_eq!(interpret("let x; x = 5").unwrap(), Value::Number(5.0));
-        assert_eq!(interpret("let x; x = 5; x + 3").unwrap(), Value::Number(8.0));
-        assert_eq!(interpret("let x, y; x = 5; y = 3; x * y").unwrap(), Value::Number(15.0));
-        assert_eq!(interpret("let x, y, z; x = 5; y = 3; z = x + y; z * 2").unwrap(), Value::Number(16.0));
-        assert_eq!(interpret("let x; x = 5; x = 10; x").unwrap(), Value::Number(10.0));
+        assert_eq!(interpret("let x = 5; x").unwrap(), Value::Number(5.0));
+        assert_eq!(interpret("let x = 5; x + 3").unwrap(), Value::Number(8.0));
+        assert_eq!(interpret("let x = 5; let y = 3; x * y").unwrap(), Value::Number(15.0));
+        assert_eq!(interpret("let x = 5; let y = 3; let z = x + y; z * 2").unwrap(), Value::Number(16.0));
+        assert_eq!(interpret("let x = 5; x = 10; x").unwrap(), Value::Number(10.0));
     }
 
     #[test]
@@ -94,8 +85,8 @@ mod tests {
 
     #[test]
     fn test_multiple_statements() {
-        assert_eq!(interpret("let x, y; x = 5; y = 10; x + y").unwrap(), Value::Number(15.0));
-        assert_eq!(interpret("let x; x = 3; x = x * 2; x + 1").unwrap(), Value::Number(7.0));
+        assert_eq!(interpret("let x = 5;let y = 10; x + y").unwrap(), Value::Number(15.0));
+        assert_eq!(interpret("let x = 3; x = x * 2; x + 1").unwrap(), Value::Number(7.0));
     }
 
     #[test]
@@ -107,7 +98,8 @@ mod tests {
     #[test]
     fn test_function_definition_and_call() {
         let program = r#"
-            fn add(a, b) {
+            let add;
+            add = fn (a, b) {
                 a + b
             };
             add(3, 4)
@@ -136,7 +128,8 @@ mod tests {
     #[test]
     fn test_closure() {
         let program = r#"
-            fn make_adder(x) {
+            let make_adder;
+            make_adder = fn (x) {
                 fn(y) {
                     x + y
                 }

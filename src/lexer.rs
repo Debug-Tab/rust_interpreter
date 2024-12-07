@@ -1,22 +1,20 @@
 use crate::Token;
+
+use serde::{Serialize, Deserialize};
 use log::{debug, error};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Lexer {
 	pub tokens: Vec<Token>,
 	pos: usize,
 }
 
 impl Lexer {
-	pub fn new(text: String) -> Result<Self, String> {
-		let mut lexer = Self {
+	pub fn new() -> Self {
+		Self {
 			tokens: Vec::new(),
 			pos: 0,
-		};
-
-		lexer.tokens = lexer.tokenize(text)?;
-		lexer.pos = 0;
-
-		Ok(lexer)
+		}
 	}
 
 	pub fn reset(&mut self, text: String) -> Result<(), String> {

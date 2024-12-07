@@ -1,29 +1,39 @@
 use std::borrow::Borrow;
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+
 use crate::debug;
-
+use crate::pre_include::initialization;
 use crate::parser::Parser;
-
 use crate::token::Token;
 use crate::value::Value;
 use crate::control_flow::ControlFlow;
-
+use crate::pre_include::{get_hole_func_id, hole_func};
 use crate::ast_node::{ASTNode, AstRef};
 use crate::function::{Function, Environment};
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Interpreter {
-    pub parser: Parser,
-    environment: Rc<RefCell<Environment>>,
+    parser: Parser,
+    environment: Box<Environment>,
 }
 
 impl Interpreter {
-    pub fn new(parser: Parser) -> Self {
+    pub fn new() -> Self {
         Self {
-            parser,
-            environment: Rc::new(RefCell::new(Environment::new())),
+            parser: Parser::new(),
+            environment: Box::new(Environment::new()),
         }
+    }
+
+    pub fn init(&mut self) -> Result<(), String> {
+        initialization(&mut self.environment)?;
+        Ok(())
+    }
+
+    pub fn run_code(&mut self, text: String) -> Result<Value, String> {
+        self.parser.reset(text)?;
+        Ok(self.interpret()?)
     }
 
     pub fn interpret(&mut self) -> Result<Value, String> {
@@ -48,10 +58,16 @@ impl Interpreter {
             },
 
 
-            ASTNode::Let { variables } => {
-                for var in variables {
-                    self.environment.borrow_mut().define(var.clone(), Value::Null);
+            ASTNode::Let { ast } => {
+                match *ast.clone() {
+                    ASTNode::Identifier(name) => self.environment.define(name, Value::Null)?,
+                    ASTNode::Assignment { name, value } => {
+                        let value = self.evaluate_expression(&value)?;
+                        self.environment.define(name, value)?
+                    },
+                    _ => return Err(format!("Cannot binding this: {:?}", ast)),
                 }
+                
                 ControlFlow::Continue(Value::Null)
             },
 
@@ -228,23 +244,17 @@ impl Interpreter {
 
             ASTNode::Assignment { name, value } => {
                 let evaluated_value = self.evaluate_expression(value)?;
-                self.environment.borrow_mut().set(name.clone(), evaluated_value.clone())?;
+                self.environment.set(name.clone(), evaluated_value.clone())?;
                 evaluated_value
             },
 
-            ASTNode::FunctionDefinition { name, params, body } => {
-                let function = Rc::new(Function::UserDefined {
-                    params: params.clone(),
-                    body: Box::clone(body),
-                    closure: self.environment.clone(),
-                });
-                let value = Value::Function(function);
-                
-                if let Some(name) = name {
-                    self.environment.borrow_mut().define(name.clone(), value.clone());
-                }
-                
-                value
+            ASTNode::FunctionDefinition { params, body } => {
+                let function = Function::new( 
+                    params.clone(),
+                    Box::clone(body),
+                    self.environment.clone()
+                );
+                Value::Function(function)
             },
 
             ASTNode::FunctionCall { function, arguments } => {
@@ -269,13 +279,7 @@ impl Interpreter {
 
         if let Value::Function(func) = function_value {
             match func.borrow() {
-                Function::BuiltIn { func } => {
-                    let args: Vec<Value> = arguments.iter()
-                        .map(|arg| self.evaluate_expression(arg.as_ast()))
-                        .collect::<Result<Vec<Value>, String>>()?;
-                    return func(args);
-                },
-                Function::UserDefined { params, body, closure } => {
+                Function { params, body, closure } => {
                     if params.len() != arguments.len() {
                         return Err(format!("Function expected {} arguments, but got {}", params.len(), arguments.len()));
                     }
@@ -290,7 +294,7 @@ impl Interpreter {
                         new_env.values.insert(param.clone(), arg_value);
                     }
                     
-                    let old_env = std::mem::replace(&mut self.environment, Rc::new(RefCell::new(new_env)));
+                    let old_env = std::mem::replace(&mut self.environment, Box::new(new_env));
                     let result = self.evaluate(&body);
                     self.environment = old_env;
                     
@@ -299,8 +303,12 @@ impl Interpreter {
                         Err(e) => Err(e),
                     }
                 }
-            }
-            
+            } 
+        } else if let Value::Hole(id) = function_value {
+            let args: Vec<Value> = arguments.iter()
+                .map(|arg| self.evaluate_expression(arg.as_ast()))
+                .collect::<Result<Vec<Value>, String>>()?;
+            return hole_func(id, args);
         } else {
             Err("Attempted to call a non-function value".to_string())
         }
@@ -308,17 +316,11 @@ impl Interpreter {
 
 
     fn get_variable_value(&self, name: &str) -> Result<Value, String> {
-        let mut current_env = self.environment.clone();
-        loop {
-            if let Some(value) = current_env.borrow_mut().values.get(name) {
-                return Ok(value.clone());
-            }
-
-            let parent = current_env.borrow_mut().parent.clone();
-            match parent {
-                Some(i) => current_env = i,
-                None => return Err(format!("Undefined variable: {}", name)),
-            }
+        let hole_id = get_hole_func_id(name);
+        if hole_id == 0 {
+            self.environment.get(name)
+        } else {
+            Ok(Value::Hole(hole_id))
         }
     }
 }

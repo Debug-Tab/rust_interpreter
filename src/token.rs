@@ -1,7 +1,9 @@
 use derive_more::Display;
+use serde::{Serialize, Deserialize};
+
 use crate::value::Value;
 
-#[derive(Clone, PartialEq, Debug, Display)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Display)]
 pub enum Token {
     // 字面量
     Float(f64),

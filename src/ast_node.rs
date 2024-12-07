@@ -1,10 +1,10 @@
 use crate::token::Token;
 use crate::value::Value;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ASTNode {
     FunctionDefinition {
-        name: Option<String>,
         params: Vec<String>,
         body: Box<ASTNode>,
     },
@@ -41,7 +41,7 @@ pub enum ASTNode {
     },
 
     Let {
-        variables: Vec<String>,
+        ast: Box<ASTNode>,
     },
 
     Conditional {

@@ -1,18 +1,25 @@
 use crate::lexer::Lexer;
 use crate::token::Token;
 use crate::ast_node::ASTNode;
-
 use crate::debug;
 
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Parser {
-	pub lexer: Lexer,
+	lexer: Lexer,
 	pub current_token: Option<Token>
 }
 
 impl Parser {
-    pub fn new(mut lexer: Lexer) -> Self {
-        let current_token = lexer.get_next_token();
-        Self { lexer, current_token: Some(current_token) }
+    pub fn new() -> Self {
+        Self { lexer: Lexer::new(), current_token: None }
+    }
+
+    pub fn reset(&mut self, text: String) -> Result<(), String> {
+        self.lexer.reset(text)?;
+        self.next();
+        Ok(())
     }
 
     fn cur_token_clone(&mut self) -> Option<Token> {
@@ -63,8 +70,6 @@ impl Parser {
         debug!("{:?}", self.cur_token_clone());
 
         match self.current_token {
-            Some(Token::FN) => self.function_definition(),
-
             Some(Token::If) => {
                 self.next();
                 let condition = Box::new(self.expression()?);
@@ -91,9 +96,8 @@ impl Parser {
 
             Some(Token::Let) => {
                 self.next();
-                let variables = self.identifier_list(false)?;
-
-                Ok(ASTNode::Let { variables })
+                Ok(ASTNode::Let { ast: Box::new(self.expression()?) })
+                
             },
 
             Some(Token::LBrace) => {
@@ -104,11 +108,20 @@ impl Parser {
             },
 
             _ => {
-                let mut node = self.expression()?;
-                
+                self.expression()
+            }
+        }
+    }
+
+    fn expression(&mut self) -> Result<ASTNode, String> {
+        match self.current_token {
+            Some(Token::FN) => self.function_definition(),
+            _ => {
+                let mut node = self.assignment()?;
+
                 if self.current_token == Some(Token::Assign) {
-                    self.eat(Token::Assign)?;
-                    let value = Box::new(self.statement()?);
+                    self.next();
+                    let value = Box::new(self.expression()?);
 
                     match node {
                         ASTNode::Identifier(name) => {
@@ -118,12 +131,11 @@ impl Parser {
                             return Err(format!("Invalid assignment to: {:?}!", node.clone()));
                         }
                     }
-                    
                 } else if self.current_token == Some(Token::Question) {
                     self.eat(Token::Question)?;
-                    let left = self.statement()?;
+                    let left = self.expression()?;
                     self.eat(Token::Colon)?;
-                    let right = self.statement()?;
+                    let right = self.expression()?;
 
                     node = ASTNode::Conditional { condition: Box::new(node), true_branch: Box::new(left), false_branch: Some(Box::new(right)) };
                 }
@@ -131,10 +143,6 @@ impl Parser {
                 Ok(node)
             }
         }
-    }
-
-    fn expression(&mut self) -> Result<ASTNode, String> {
-        self.assignment()
     }
 
     fn assignment(&mut self) -> Result<ASTNode, String> {
@@ -279,14 +287,6 @@ impl Parser {
 
     fn function_definition(&mut self) -> Result<ASTNode, String> {
         self.eat(Token::FN)?;
-        
-        let name = if let Some(Token::Identifier(name)) = &self.current_token {
-            let name = name.clone();
-            self.next();
-            Some(name)
-        } else {
-            None
-        };
 
         let params = self.identifier_list(true)?;
         debug!("Params: {:?}", params);
@@ -294,7 +294,6 @@ impl Parser {
         let body = self.statement()?;
 
         Ok(ASTNode::FunctionDefinition {
-                name,
                 params,
                 body: Box::new(body),
             },
@@ -321,10 +320,10 @@ impl Parser {
         let mut tuple = vec![];
 
         if self.cur_token_unwrap() != Token::RParen {
-            tuple.push(Box::new(self.statement().unwrap()));
+            tuple.push(Box::new(self.expression().unwrap()));
             while self.cur_token_unwrap() == Token::Comma {
                 self.next();
-                tuple.push(Box::new(self.statement().unwrap()));
+                tuple.push(Box::new(self.expression().unwrap()));
             }
         }
 

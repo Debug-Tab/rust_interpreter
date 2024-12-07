@@ -1,15 +1,18 @@
-use std::rc::Rc;
 use crate::function::Function;
-use std::fmt;
 
-#[derive(Clone, PartialEq, Debug)]
+use serde::{Serialize, Deserialize};
+use std::fmt::{self};
+
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Value {
     Number(f64),
     Boolean(bool),
     String(String),
-    Function(Rc<Function>),
+    Function(Function),
+    Hole(u32),
     Tuple(Vec<Value>),
     Null,
+    Nothing,
 }
 
 impl Value {
@@ -37,8 +40,10 @@ impl From<Value> for bool {
             Value::Boolean(b) => b,
             Value::String(str) => str.len() != 0,
             Value::Function(_) => true,
+            Value::Hole(_) => true,
             Value::Tuple(v) => v.len() != 0,
             Value::Null => false,
+            Value::Nothing => false,
         }
     }
 }
@@ -56,7 +61,9 @@ impl fmt::Display for Value {
                     format!("({})", tuple.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
                 },
                 Value::Function(_) => "Function".to_string(),
+                Value::Hole(v) => format!("<Builtin Function (Hole{})>", v),
                 Value::Null => "Null".to_string(),
+                Value::Nothing => String::new(),
             }
         )
     }
