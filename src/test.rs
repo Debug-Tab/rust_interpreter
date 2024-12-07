@@ -50,15 +50,15 @@ mod tests {
 
     #[test]
     fn test_logical_operators() {
-        assert_eq!(interpret("1 && 1").unwrap(), Value::Boolean(true));
-        assert_eq!(interpret("1 && 0").unwrap(), Value::Boolean(false));
-        assert_eq!(interpret("1 || 0").unwrap(), Value::Boolean(true));
-        assert_eq!(interpret("0 || 0").unwrap(), Value::Boolean(false));
+        assert_eq!(interpret("true && true").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("true && false").unwrap(), Value::Boolean(false));
+        assert_eq!(interpret("true || false").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("false || false").unwrap(), Value::Boolean(false));
         assert_eq!(interpret("!true").unwrap(), Value::Boolean(false));
         assert_eq!(interpret("!false").unwrap(), Value::Boolean(true));
-        assert_eq!(interpret("1 && 2 && 3 && 4 && 5").unwrap(), Value::Boolean(true));
-        assert_eq!(interpret("0 || 0 || 1 || 0 || 0").unwrap(), Value::Boolean(true));
-        assert_eq!(interpret("1 && 1 && 0 && 1 && 1").unwrap(), Value::Boolean(false));
+        assert_eq!(interpret("true && true && true && true && true").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("false || false || true || false || false").unwrap(), Value::Boolean(true));
+        assert_eq!(interpret("true && true && false && true && true").unwrap(), Value::Boolean(false));
     }
 
     #[test]

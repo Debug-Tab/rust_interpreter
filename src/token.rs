@@ -54,6 +54,7 @@ pub enum Token {
 
     // 语句
     Statement,
+    Break,
 
     // 结束符
     EOF,

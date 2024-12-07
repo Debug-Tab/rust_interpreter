@@ -6,6 +6,7 @@ use std::fs;
 use std::path::Path;
 use std::ffi::OsStr;
 use clap::{Parser, Subcommand};
+use chrono::Utc;
 
 mod token;
 mod value;
@@ -14,14 +15,14 @@ mod ast_node;
 mod lexer;
 mod parser;
 mod interpreter;
-mod function;
+mod environment;
 mod pre_include;
 mod test;
 
 use token::Token;
 use interpreter::Interpreter;
 
-/// Simple program to greet a person
+/// An Interpreter for Lim
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
@@ -34,6 +35,7 @@ enum Commands {
     Loop,
 
     Run { 
+        #[arg(required = true)]
         input: String
     },
 
@@ -46,6 +48,8 @@ enum Commands {
 }
 
 fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
+    print!("Time: {:?}\n", Utc::now());
+
     loop {
         let mut text = String::new();
 
@@ -66,8 +70,7 @@ fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // 初始化日志
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("error")).init();
 
     let mut interpreter = Interpreter::new();
     interpreter.init().expect("Init Error: ");

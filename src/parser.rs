@@ -27,7 +27,7 @@ impl Parser {
     }
 
     fn cur_token_unwrap(&mut self) -> Token {
-        self.cur_token_clone().unwrap_or_else(|| panic!("cur_token_unwrap: It's None!"))
+        self.cur_token_clone().expect("Current Token Unwrap(None)")
     }
 
     fn eat(&mut self, expected_token: Token) -> Result<(), String> {
@@ -87,6 +87,11 @@ impl Parser {
                 let condition = Box::new(self.expression()?);
                 let body = Box::new(self.statement()?);
                 Ok(ASTNode::Loop { condition, body })
+            },
+
+            Some(Token::Break) => {
+                self.next();
+                Ok(ASTNode::Break)
             }
 
             Some(Token::Return) => {

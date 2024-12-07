@@ -1,4 +1,5 @@
-use crate::function::Function;
+use crate::ast_node::ASTNode;
+use crate::environment::Environment;
 
 use serde::{Serialize, Deserialize};
 use std::fmt::{self};
@@ -8,7 +9,11 @@ pub enum Value {
     Number(f64),
     Boolean(bool),
     String(String),
-    Function(Function),
+    Function {
+        params: Vec<String>,
+        body: Box<ASTNode>,
+        closure: Box<Environment>,
+    },
     Hole(u32),
     Tuple(Vec<Value>),
     Null,
@@ -31,22 +36,15 @@ impl Value {
             _ => Err(format!("Could not convert to number: {:?}", self.clone())),
         }
     }
-}
 
-impl From<Value> for bool {
-    fn from(value: Value) -> Self {
-        match value {
-            Value::Number(i) => i != 0.0,
-            Value::Boolean(b) => b,
-            Value::String(str) => str.len() != 0,
-            Value::Function(_) => true,
-            Value::Hole(_) => true,
-            Value::Tuple(v) => v.len() != 0,
-            Value::Null => false,
-            Value::Nothing => false,
+    pub fn get_boolean(&self) -> Result<bool, String> {
+        match *self {
+            Value::Boolean(b) => Ok(b),
+            _ => Err(format!("Expected bool, found: {}!", self.clone())),
         }
     }
 }
+
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -60,7 +58,7 @@ impl fmt::Display for Value {
                 Value::Tuple(tuple) => {
                     format!("({})", tuple.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
                 },
-                Value::Function(_) => "Function".to_string(),
+                Value::Function { .. } => "Function".to_string(),
                 Value::Hole(v) => format!("<Builtin Function (Hole{})>", v),
                 Value::Null => "Null".to_string(),
                 Value::Nothing => String::new(),

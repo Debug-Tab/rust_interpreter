@@ -1,25 +1,7 @@
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-use crate::ast_node::ASTNode;
 use crate::value::Value;
-
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
-pub struct Function {
-    pub params: Vec<String>,
-    pub body: Box<ASTNode>,
-    pub closure: Box<Environment>,
-}
-
-impl Function {
-    pub fn new(params: Vec<String>, body: Box<ASTNode>, closure: Box<Environment>) -> Self {
-        Self {
-            params, 
-            body, 
-            closure,
-        }
-    }
-}
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
 pub struct Environment {

@@ -59,6 +59,7 @@ pub enum ASTNode {
     Identifier(String),
     Tuple(Vec<Box<ASTNode>>),
     Return(Box<ASTNode>),
+    Break,
 }
 
 pub trait AstRef {

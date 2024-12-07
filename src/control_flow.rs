@@ -25,10 +25,3 @@ impl From<ControlFlow> for Value {
         }
     }
 }
-
-impl From<ControlFlow> for bool {
-    fn from(c: ControlFlow) -> Self {
-        let v: Value = c.into();
-        v.into()
-    }
-}

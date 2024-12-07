@@ -57,11 +57,12 @@ impl Lexer {
 
 						"true" => tokens.push(Token::True),
 						"false" => tokens.push(Token::False),
-						"null" => tokens.push(Token::Null)
-						,
+						"null" => tokens.push(Token::Null),
+
 						"let" => tokens.push(Token::Let),
 						"if" => tokens.push(Token::If),
 						"else" => tokens.push(Token::Else),
+						"break" => tokens.push(Token::Break),
 
 						"while" => tokens.push(Token::While),
 						_ => tokens.push(Token::Identifier(id)),

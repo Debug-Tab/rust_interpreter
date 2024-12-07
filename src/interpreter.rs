@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
@@ -8,9 +7,9 @@ use crate::parser::Parser;
 use crate::token::Token;
 use crate::value::Value;
 use crate::control_flow::ControlFlow;
-use crate::pre_include::{get_hole_func_id, hole_func};
+use crate::pre_include::hole_func;
 use crate::ast_node::{ASTNode, AstRef};
-use crate::function::{Function, Environment};
+use crate::environment::Environment;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Interpreter {
@@ -99,6 +98,10 @@ impl Interpreter {
                 result
             },
 
+            ASTNode::Break => {
+                ControlFlow::Break
+            }
+
             ASTNode::Return(expr) => {
                 let value = self.evaluate_expression(expr)?;
                 ControlFlow::Return(value)
@@ -140,8 +143,8 @@ impl Interpreter {
             ASTNode::LogicalOperation { operator, left, right } => {
                 let result = match operator {
                     Token::And => {
-                        if self.evaluate_expression(&left)?.into() {
-                            if self.evaluate_expression(&right)?.into() {
+                        if self.evaluate_expression(&left)?.get_boolean()? {
+                            if self.evaluate_expression(&right)?.get_boolean()? {
                                 true
                             } else {
                                 false
@@ -152,9 +155,9 @@ impl Interpreter {
                     },
 
                     Token::Or => {
-                        if self.evaluate_expression(&left)?.into() {
+                        if self.evaluate_expression(&left)?.get_boolean()? {
                             true
-                        } else if self.evaluate_expression(&right)?.into() {
+                        } else if self.evaluate_expression(&right)?.get_boolean()? {
                             true
                         } else {
                             false
@@ -249,12 +252,11 @@ impl Interpreter {
             },
 
             ASTNode::FunctionDefinition { params, body } => {
-                let function = Function::new( 
-                    params.clone(),
-                    Box::clone(body),
-                    self.environment.clone()
-                );
-                Value::Function(function)
+                Value::Function{
+                    params: params.clone(),
+                    body: Box::clone(body),
+                    closure: self.environment.clone(),
+                }
             },
 
             ASTNode::FunctionCall { function, arguments } => {
@@ -275,36 +277,32 @@ impl Interpreter {
     
 
     fn evaluate_function_call<T: AstRef>(&mut self, function: Value, arguments: &[T]) -> Result<Value, String> {
-        let function_value = function;
 
-        if let Value::Function(func) = function_value {
-            match func.borrow() {
-                Function { params, body, closure } => {
-                    if params.len() != arguments.len() {
-                        return Err(format!("Function expected {} arguments, but got {}", params.len(), arguments.len()));
-                    }
-                    
-                    let mut new_env = Environment {
-                        values: HashMap::new(),
-                        parent: Some(closure.clone()),
-                    };
-                    
-                    for (param, arg) in params.iter().zip(arguments) {
-                        let arg_value = self.evaluate_expression(arg.as_ast())?;
-                        new_env.values.insert(param.clone(), arg_value);
-                    }
-                    
-                    let old_env = std::mem::replace(&mut self.environment, Box::new(new_env));
-                    let result = self.evaluate(&body);
-                    self.environment = old_env;
-                    
-                    match result {
-                        Ok(c) => Ok(c.unwrap()),
-                        Err(e) => Err(e),
-                    }
-                }
+        if let Value::Function { params, body, closure } = function.clone() {
+            if params.len() != arguments.len() {
+                return Err(format!("Function expected {} arguments, but got {}", params.len(), arguments.len()));
+            }
+            
+            let mut new_env = Environment {
+                values: HashMap::new(),
+                parent: Some(closure.clone()),
+            };
+            
+            for (param, arg) in params.iter().zip(arguments) {
+                let arg_value = self.evaluate_expression(arg.as_ast())?;
+                new_env.values.insert(param.clone(), arg_value);
+            }
+            new_env.define("self".to_string(), function.clone())?;
+            
+            let old_env = std::mem::replace(&mut self.environment, Box::new(new_env));
+            let result = self.evaluate(&body);
+            self.environment = old_env;
+            
+            match result {
+                Ok(c) => Ok(c.unwrap()),
+                Err(e) => Err(e),
             } 
-        } else if let Value::Hole(id) = function_value {
+        } else if let Value::Hole(id) = function {
             let args: Vec<Value> = arguments.iter()
                 .map(|arg| self.evaluate_expression(arg.as_ast()))
                 .collect::<Result<Vec<Value>, String>>()?;
@@ -316,11 +314,6 @@ impl Interpreter {
 
 
     fn get_variable_value(&self, name: &str) -> Result<Value, String> {
-        let hole_id = get_hole_func_id(name);
-        if hole_id == 0 {
-            self.environment.get(name)
-        } else {
-            Ok(Value::Hole(hole_id))
-        }
+        self.environment.get(name)
     }
 }

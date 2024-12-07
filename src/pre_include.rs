@@ -1,20 +1,18 @@
 use crate::value::Value;
-use crate::function::Environment;
-
-pub fn get_hole_func_id(name: &str) -> u32 {
-    match name {
-        "printf" => 12,
-        _ => 0,
-    }
-}
+use crate::environment::Environment;
+use chrono::Utc;
 
 pub fn initialization(env: &mut Environment) -> Result<(), String> {
+    env.define("timestamp".to_string(), Value::Hole(1))?;
     env.define("printf".to_string(), Value::Hole(12))?;
     Ok(())
 }
 
 pub fn hole_func(id: u32, args: Vec<Value>) -> Result<Value, String> {
     match id {
+        1 => {
+            Ok(Value::Number(Utc::now().timestamp() as f64))
+        }
         12 => {
             if let Value::String(format) = &args[0] {
                 let formatted = format_string(format, &args[1..])?;
