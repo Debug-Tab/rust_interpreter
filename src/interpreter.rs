@@ -13,14 +13,12 @@ use crate::environment::Environment;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Interpreter {
-    parser: Parser,
     environment: Box<Environment>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         Self {
-            parser: Parser::new(),
             environment: Box::new(Environment::new()),
         }
     }
@@ -30,13 +28,9 @@ impl Interpreter {
         Ok(())
     }
 
-    pub fn run_code(&mut self, text: String) -> Result<Value, String> {
-        self.parser.reset(text)?;
-        Ok(self.interpret()?)
-    }
 
-    pub fn interpret(&mut self) -> Result<Value, String> {
-        let ast = self.parser.parse()?;
+    pub fn interpret(&mut self, text: String) -> Result<Value, String> {
+        let ast = Parser::new(text)?.parse()?;
         debug!("ast: {:?}", ast);
         Ok(self.evaluate(&ast)?.unwrap())
     }
@@ -131,10 +125,14 @@ impl Interpreter {
                             Token::Div => if right == 0.0 { return Err("Division by zero!".to_string()) } else { left / right },
                             Token::Mod => if right == 0.0 { return Err("Modulo by zero".to_string()) } else { left % right },
 
-                            _ => {return Err(format!("Invalid operator for binary operation: {:?}", operator))},
+                            _ => {
+                                return Err(format!("Invalid operator for binary operation: {:?}", operator))
+                            },
                         }
                     },
-                    _ => { return Err(format!("Invalid operands for binary operation: {:?} {:?}", left, right)) }
+                    _ => {
+                        return Err(format!("Invalid operands for binary operation: {:?} {:?}", left, right))
+                    }
                 };
                 
                 Value::Number(result)
@@ -189,7 +187,9 @@ impl Interpreter {
                                     Token::LessEqual => {
                                         left <= right
                                     }, 
-                                    _ => { return Err(format!("Invalid operands for binary operation: {:?} {:?}", left, right)) }
+                                    _ => {
+                                        return Err(format!("Invalid operator for binary operation: {:?}", operator))
+                                    }
                                 }
                                 
                             }

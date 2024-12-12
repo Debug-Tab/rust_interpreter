@@ -2,10 +2,11 @@ use log::{error, debug};
 use std::io::{self, Write};
 use env_logger::Env;
 use std::error::Error;
-use std::fs;
 use std::path::Path;
 use std::ffi::OsStr;
 use clap::{Parser, Subcommand};
+use std::fs;
+use std::env;
 use chrono::Utc;
 
 mod token;
@@ -48,7 +49,7 @@ enum Commands {
 }
 
 fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
-    print!("Time: {:?}\n", Utc::now());
+    print!("Lim {} (Time: {:?}) on {:?}\n", env!("CARGO_PKG_VERSION"), Utc::now(), env::var("TARGET"));
 
     loop {
         let mut text = String::new();
@@ -62,7 +63,7 @@ fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
             continue;
         }
 
-        match interpreter.run_code(text) {
+        match interpreter.interpret(text) {
             Ok(result) => println!("{}", result),
             Err(e) => error!("Error: {}", e),
         }
@@ -96,7 +97,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 } else {
                     let text = std::fs::read_to_string(input)?;
 
-                    match interpreter.run_code(text) {
+                    match interpreter.interpret(text) {
                         Ok(result) => println!("{}", result),
                         Err(e) => error!("Error: {}", e),
                     }
@@ -107,12 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             Commands::Build { input, output } => {
                 let text = std::fs::read_to_string(&input)?;
-                let mut parser = crate::parser::Parser::new();
-
-                if let Err(e) = parser.reset(text) {
-                    error!("Error: {}", e);
-                    return Err(e.into());
-                }
+                let mut parser = crate::parser::Parser::new(text)?;
 
                 match parser.parse() {
                     Ok(result) => {

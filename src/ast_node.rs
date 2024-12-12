@@ -11,7 +11,7 @@ pub enum ASTNode {
 
     FunctionCall {
         function: Option<String>,
-        arguments: Vec<ASTNode>,
+        arguments: Vec<Box<ASTNode>>,
     },
 
     BinaryOperation {

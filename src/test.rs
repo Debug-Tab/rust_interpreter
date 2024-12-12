@@ -5,7 +5,7 @@ mod tests {
 
     fn interpret(text: &str) -> Result<Value, String> {
         let mut interpreter = Interpreter::new();
-        interpreter.run_code(text.to_string())
+        interpreter.interpret(text.to_string())
     }
 
     fn assert_float_eq(a: f64, b: f64) {

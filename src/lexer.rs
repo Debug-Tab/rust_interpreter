@@ -1,4 +1,4 @@
-use crate::Token;
+use crate::{token, Token};
 
 use serde::{Serialize, Deserialize};
 use log::{debug, error};
@@ -19,7 +19,7 @@ impl Lexer {
 
 	pub fn reset(&mut self, text: String) -> Result<(), String> {
 		self.pos = 0;
-		self.tokens = self.tokenize(text)?;
+		self.tokens = Lexer::tokenize(text)?;
 		self.pos = 0;
 		Ok(())
 	}
@@ -29,7 +29,9 @@ impl Lexer {
 		panic!("Invalid character!");
 	}
 
-	fn tokenize(&mut self, text: String) -> Result<Vec<Token>, String> {
+	pub fn tokenize(text: String) -> Result<Vec<Token>, String> {
+		let lexer = Lexer::new();
+
 		let mut tokens = Vec::new();
 		let mut current_char = text.chars().peekable();
 
@@ -44,13 +46,13 @@ impl Lexer {
 				'{' => { tokens.push(Token::LBrace); current_char.next(); },
 				'}' => { tokens.push(Token::RBrace); current_char.next(); },
 				'"' => {
-					tokens.push(Token::String(self.string(&mut current_char)?));
+					tokens.push(Token::String(lexer.string(&mut current_char)?));
 				}
 				ch if ch.is_digit(10) || ch == '.' => {
-					tokens.push(Token::Float(self.number(&mut current_char)));
+					tokens.push(Token::Float(lexer.number(&mut current_char)));
 				},
 				ch if ch.is_alphabetic() || ch == '_' => {
-					let id = self.identifier(&mut current_char);
+					let id = lexer.identifier(&mut current_char);
 					match id.as_str() {
 						"fn" => tokens.push(Token::FN),
 						"return" => tokens.push(Token::Return),
@@ -84,7 +86,7 @@ impl Lexer {
 						tokens.push(Token::And);
 						current_char.next();
 					} else {
-						self.error();
+						lexer.error();
 					}
 				},
 				'|' => {
@@ -93,7 +95,7 @@ impl Lexer {
 						tokens.push(Token::Or);
 						current_char.next();
 					} else {
-						self.error();
+						lexer.error();
 					}
                 },
 				'>' => {
@@ -132,7 +134,7 @@ impl Lexer {
 						tokens.push(Token::Not);
 					}
 				},
-				_ => self.error(),
+				_ => lexer.error(),
 			}
 		}
 		tokens.push(Token::EOF);
