@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 use crate::debug;
-use crate::pre_include::initialization;
+use crate::builtin::initialization;
 use crate::parser::Parser;
 use crate::token::Token;
 use crate::value::Value;
 use crate::control_flow::ControlFlow;
-use crate::pre_include::hole_func;
+use crate::builtin::hole_func;
 use crate::ast_node::{ASTNode, AstRef};
 use crate::environment::Environment;
 
@@ -239,10 +239,43 @@ impl Interpreter {
                 let mut result: Vec<Value> = vec![];
 
                 for i in tuple {
-                    result.push(self.evaluate_expression(i)?.into());
+                    result.push(self.evaluate_expression(i)?);
                 }
 
                 Value::Tuple(result)
+            },
+
+            ASTNode::Vector(vector) => {
+                let mut result: Vec<Value> = vec![];
+
+                for i in vector {
+                    result.push(self.evaluate_expression(i)?);
+                }
+
+                Value::Vector(result)
+            },
+
+            ASTNode::Index { expression, index } => {
+                let expression = self.evaluate_expression(expression)?;
+                let index = self.evaluate_expression(index)?;
+
+                match expression {
+                    Value::Tuple(list) | Value::Vector(list) => {
+                        match index {
+                            Value::Number(num) => {
+                                let index = num as usize;
+                                if index < list.len() {
+                                    list[index as usize].clone()
+                                } else {
+                                    return Err(format!("Index out of bounds: the len is {} but the index is {}", list.len(), index));
+                                }
+                                
+                            }, // todo: not true
+                            _ => return Err(format!("This expression cannot be used as an index: {index}")),
+                        }
+                    },
+                    _ => return Err(format!("This expression cannot be indexed: {expression}")),
+                }
             },
 
             ASTNode::Assignment { name, value } => {

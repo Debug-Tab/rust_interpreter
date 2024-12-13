@@ -12,7 +12,7 @@ pub fn hole_func(id: u32, args: Vec<Value>) -> Result<Value, String> {
     match id {
         1 => {
             Ok(Value::Number(Utc::now().timestamp() as f64))
-        }
+        },
         12 => {
             if let Value::String(format) = &args[0] {
                 let formatted = format_string(format, &args[1..])?;
@@ -22,7 +22,7 @@ pub fn hole_func(id: u32, args: Vec<Value>) -> Result<Value, String> {
                 Err(format!("The first argument must be a string, actually found: {}", args[0]))
             }
         },
-        _ => Err(format!("No hole func: {}", id)),
+        _ => Err(format!("No hole func: {id}")),
     }
 }
 

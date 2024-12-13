@@ -1,3 +1,5 @@
+use std::result;
+
 use crate::lexer::Lexer;
 use crate::token::Token;
 use crate::ast_node::ASTNode;
@@ -269,11 +271,23 @@ impl Parser {
     fn unary_expression(&mut self) -> Result<ASTNode, String> {
         if let Some(token @ (Token::Plus | Token::Minus | Token::Not)) = self.cur_token_clone() {
             self.next();
-            let expr = self.unary_expression()?;
+            let expr = self.index_expression()?;
             Ok(ASTNode::UnaryOperation { operator: token, operand: Box::new(expr) })
         } else {
-            self.primary()
+            self.index_expression()
         }
+    }
+
+    fn index_expression(&mut self) -> Result<ASTNode, String> {
+        let mut result = self.primary()?;
+
+        while self.cur_token_equals(Token::LBracket) {
+            self.next();
+            result = ASTNode::Index { expression: Box::new(result), index: Box::new(self.expression()?) };
+            self.eat(Token::RBracket)?;
+        }
+
+        Ok(result)
     }
 
     fn primary(&mut self) -> Result<ASTNode, String> {
@@ -296,13 +310,18 @@ impl Parser {
             },
 
             Token::LParen => {
-                let tuple = self.collect_tuple(true)?;
+                let tuple = self.tuple()?;
                 if tuple.len() == 1 {
                     Ok(*tuple[0].clone())
                 } else {
                     Ok(ASTNode::Tuple(tuple))
                 }
             },
+
+            Token::LBracket => {
+                Ok(ASTNode::Vector(self.vector()?))
+            },
+
             _ => Err(format!("[Parser] Unexpected token: {}!", self.cur_token_unwrap())),
         }
     }
@@ -312,7 +331,7 @@ impl Parser {
         Ok(
             ASTNode::FunctionCall {
                 function: Some(name),
-                arguments: self.collect_tuple(true)?,
+                arguments: self.tuple()?,
             }
         )
     }
@@ -320,7 +339,7 @@ impl Parser {
     fn function_definition(&mut self) -> Result<ASTNode, String> {
         self.eat(Token::FN)?;
 
-        let params = self.identifier_list(true)?;
+        let params = self.identifier_list()?;
         debug!("Params: {:?}", params);
 
         let body = self.statement()?;
@@ -332,8 +351,8 @@ impl Parser {
         )
     }
 
-    fn identifier_list(&mut self, need_paren: bool) -> Result<Vec<String>, String> {
-        let params = self.collect_tuple(need_paren)?;
+    fn identifier_list(&mut self) -> Result<Vec<String>, String> {
+        let params = self.tuple()?;
         let mut result: Vec<String> = vec![];
         for i in params {
             match *i {
@@ -344,35 +363,36 @@ impl Parser {
         Ok(result)
     }
 
-    fn collect_tuple(&mut self, need_paren: bool) -> Result<Vec<Box<ASTNode>>, String> {
-        if need_paren { 
-            self.eat(Token::LParen)?;
-        }
-
-        let mut tuple = vec![];
-
-        if self.cur_token_unwrap() != Token::RParen {
-            tuple.push(Box::new(self.expression().unwrap()));
-            while self.cur_token_unwrap() == Token::Comma {
-                self.next();
-                tuple.push(Box::new(self.expression().unwrap()));
-            }
-        }
-
-        if need_paren { 
-            self.eat(Token::RParen)?;
-        }
-        Ok(tuple)
+    fn tuple(&mut self) -> Result<Vec<Box<ASTNode>>, String> {
+        self.eat(Token::LParen)?;
+        let result = self.collect_list();
+        self.eat(Token::RParen)?;
+        result
     }
 
-    /*
-    fn identifier(&mut self) -> Result<String, String> {
-        if let Token::Identifier(name) = self.cur_token_unwrap() {
+    fn vector(&mut self) -> Result<Vec<Box<ASTNode>>, String> {
+        self.eat(Token::LBracket)?;
+        let result = self.collect_list();
+        self.eat(Token::RBracket)?;
+        result
+    }
+
+    fn set(&mut self) -> Result<Vec<Box<ASTNode>>, String> {
+        self.eat(Token::LBrace)?;
+        let result = self.collect_list();
+        self.eat(Token::RBrace)?;
+        result
+    }
+
+    fn collect_list(&mut self) -> Result<Vec<Box<ASTNode>>, String> {
+        let mut list = vec![];
+
+        list.push(Box::new(self.expression()?));
+        while self.cur_token_unwrap() == Token::Comma {
             self.next();
-            Ok(name)
-        } else {
-            Err(format!("Expected identifier, found: {:?}!", self.cur_token_clone()))
+            list.push(Box::new(self.expression()?));
         }
+        
+        Ok(list)
     }
-     */
 }

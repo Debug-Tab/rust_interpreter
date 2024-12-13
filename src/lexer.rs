@@ -1,4 +1,4 @@
-use crate::{token, Token};
+use crate::Token;
 
 use serde::{Serialize, Deserialize};
 use log::{debug, error};
@@ -15,13 +15,6 @@ impl Lexer {
 			tokens: Vec::new(),
 			pos: 0,
 		}
-	}
-
-	pub fn reset(&mut self, text: String) -> Result<(), String> {
-		self.pos = 0;
-		self.tokens = Lexer::tokenize(text)?;
-		self.pos = 0;
-		Ok(())
 	}
 
 	fn error(&self) -> ! {
@@ -42,9 +35,6 @@ impl Lexer {
 			}
 
 			match ch {
-				',' => { tokens.push(Token::Comma); current_char.next(); },
-				'{' => { tokens.push(Token::LBrace); current_char.next(); },
-				'}' => { tokens.push(Token::RBrace); current_char.next(); },
 				'"' => {
 					tokens.push(Token::String(lexer.string(&mut current_char)?));
 				}
@@ -75,8 +65,13 @@ impl Lexer {
 				'*' => { tokens.push(Token::Mul); current_char.next(); },
 				'/' => { tokens.push(Token::Div); current_char.next(); },
 				'%' => { tokens.push(Token::Mod); current_char.next(); },
+				',' => { tokens.push(Token::Comma); current_char.next(); },
 				'(' => { tokens.push(Token::LParen); current_char.next(); },
 				')' => { tokens.push(Token::RParen); current_char.next(); },
+				'[' => { tokens.push(Token::LBracket); current_char.next(); },
+				']' => { tokens.push(Token::RBracket); current_char.next(); },
+				'{' => { tokens.push(Token::LBrace); current_char.next(); },
+				'}' => { tokens.push(Token::RBrace); current_char.next(); },
 				';' => { tokens.push(Token::Semicolon); current_char.next(); },
 				'?' => { tokens.push(Token::Question); current_char.next(); },
 				':' => { tokens.push(Token::Colon); current_char.next(); },
@@ -217,15 +212,4 @@ impl Lexer {
 
 		result
 	}
-
-	pub fn get_next_token(&mut self) -> Token {
-		if self.pos < self.tokens.len() {
-			let token = self.tokens[self.pos].clone();
-			self.pos += 1;
-			token
-		} else {
-			Token::EOF
-		}
-	}
-
 }

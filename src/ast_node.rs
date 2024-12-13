@@ -57,7 +57,14 @@ pub enum ASTNode {
 
     Literal(Value),
     Identifier(String),
+
     Tuple(Vec<Box<ASTNode>>),
+    Vector(Vec<Box<ASTNode>>),
+    Index {
+        expression: Box<ASTNode>,
+        index: Box<ASTNode>,
+    },
+
     Return(Box<ASTNode>),
     Break,
 }

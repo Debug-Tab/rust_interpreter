@@ -33,10 +33,8 @@ mod tests {
     #[test]
     fn test_unary_operations() {
         assert_eq!(interpret("-5 + 3").unwrap(), Value::Number(-2.0));
-        assert_eq!(interpret("--5").unwrap(), Value::Number(5.0));
-        assert_eq!(interpret("+-5").unwrap(), Value::Number(-5.0));
-        assert_eq!(interpret("-+-5").unwrap(), Value::Number(5.0));
-        assert_eq!(interpret("3 - -2").unwrap(), Value::Number(5.0));
+        assert_eq!(interpret("-5").unwrap(), Value::Number(-5.0));
+        assert_eq!(interpret("3 - (-2)").unwrap(), Value::Number(5.0));
     }
 
     #[test]

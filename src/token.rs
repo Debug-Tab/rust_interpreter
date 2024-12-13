@@ -47,7 +47,10 @@ pub enum Token {
     // 括号
     LParen, 
     RParen,
-
+    LBracket,
+    RBracket,
+    LBrace,
+    RBrace,
     
     // 分号
     Semicolon,
@@ -63,8 +66,6 @@ pub enum Token {
     FN,
     Arrow,
     Comma,
-    LBrace,
-    RBrace,
     Return,
     Call,
 

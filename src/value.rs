@@ -16,6 +16,7 @@ pub enum Value {
     },
     Hole(u32),
     Tuple(Vec<Value>),
+    Vector(Vec<Value>),
     Null,
     Nothing,
 }
@@ -57,6 +58,9 @@ impl fmt::Display for Value {
                 Value::String(str) => str.clone(),
                 Value::Tuple(tuple) => {
                     format!("({})", tuple.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
+                },
+                Value::Vector(vector) => {
+                    format!("[{}]", vector.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
                 },
                 Value::Function { .. } => "Function".to_string(),
                 Value::Hole(v) => format!("<Builtin Function (Hole{})>", v),
