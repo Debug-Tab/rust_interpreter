@@ -8,9 +8,9 @@ pub enum Token {
     // 字面量
     Float(f64),
     Tuple,
-    String(String),
+    String(Box<String>),
 
-    Identifier(String),
+    Identifier(Box<String>),
 
     True,
     False,

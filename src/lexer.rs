@@ -36,7 +36,7 @@ impl Lexer {
 
 			match ch {
 				'"' => {
-					tokens.push(Token::String(lexer.string(&mut current_char)?));
+					tokens.push(Token::String(lexer.string(&mut current_char)?.into()));
 				}
 				ch if ch.is_digit(10) || ch == '.' => {
 					tokens.push(Token::Float(lexer.number(&mut current_char)));
@@ -57,7 +57,7 @@ impl Lexer {
 						"break" => tokens.push(Token::Break),
 
 						"while" => tokens.push(Token::While),
-						_ => tokens.push(Token::Identifier(id)),
+						_ => tokens.push(Token::Identifier(id.into())),
 					}
 				},
 				'+' => { tokens.push(Token::Plus); current_char.next(); },

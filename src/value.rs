@@ -8,7 +8,7 @@ use std::fmt::{self};
 pub enum Value {
     Number(f64),
     Boolean(bool),
-    String(String),
+    String(Box<String>),
     Function {
         params: Vec<String>,
         body: Box<ASTNode>,
@@ -55,7 +55,7 @@ impl fmt::Display for Value {
             match self {
                 Value::Number(n) => n.to_string(),
                 Value::Boolean(boolean) => boolean.to_string(),
-                Value::String(str) => str.clone(),
+                Value::String(str) => *str.clone(),
                 Value::Tuple(tuple) => {
                     format!("({})", tuple.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
                 },

@@ -11,7 +11,7 @@ pub enum ASTNode {
 
     FunctionCall {
         function: Option<String>,
-        arguments: Vec<Box<ASTNode>>,
+        arguments: Box<Vec<ASTNode>>,
     },
 
     BinaryOperation {
@@ -32,11 +32,11 @@ pub enum ASTNode {
     },
 
     Block {
-        statements: Vec<Box<ASTNode>>,
+        statements: Box<Vec<ASTNode>>,
     },
 
     Assignment {
-        name: String,
+        name: Box<String>,
         value: Box<ASTNode>,
     },
 
@@ -56,10 +56,10 @@ pub enum ASTNode {
     },
 
     Literal(Value),
-    Identifier(String),
+    Identifier(Box<String>),
 
-    Tuple(Vec<Box<ASTNode>>),
-    Vector(Vec<Box<ASTNode>>),
+    Tuple(Box<Vec<ASTNode>>),
+    Vector(Box<Vec<ASTNode>>),
     Index {
         expression: Box<ASTNode>,
         index: Box<ASTNode>,

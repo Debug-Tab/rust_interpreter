@@ -40,8 +40,8 @@ impl Interpreter {
             ASTNode::Block { statements } => {
                 let mut result = ControlFlow::Continue(Value::Null);
 
-                for statement in statements {
-                    result = self.evaluate(statement)?;
+                for statement in *statements.clone() {
+                    result = self.evaluate(&statement)?;
                     if let ControlFlow::Return(_) = result {
                         break;
                     }
@@ -53,10 +53,10 @@ impl Interpreter {
 
             ASTNode::Let { ast } => {
                 match *ast.clone() {
-                    ASTNode::Identifier(name) => self.environment.define(name, Value::Null)?,
+                    ASTNode::Identifier(name) => self.environment.define(*name, Value::Null)?,
                     ASTNode::Assignment { name, value } => {
                         let value = self.evaluate_expression(&value)?;
-                        self.environment.define(name, value)?
+                        self.environment.define(*name, value)?
                     },
                     _ => return Err(format!("Cannot binding this: {:?}", ast)),
                 }
@@ -238,8 +238,8 @@ impl Interpreter {
             ASTNode::Tuple(tuple) => {
                 let mut result: Vec<Value> = vec![];
 
-                for i in tuple {
-                    result.push(self.evaluate_expression(i)?);
+                for i in *tuple.clone() {
+                    result.push(self.evaluate_expression(&i)?);
                 }
 
                 Value::Tuple(result)
@@ -248,8 +248,8 @@ impl Interpreter {
             ASTNode::Vector(vector) => {
                 let mut result: Vec<Value> = vec![];
 
-                for i in vector {
-                    result.push(self.evaluate_expression(i)?);
+                for i in *vector.clone() {
+                    result.push(self.evaluate_expression(&i)?);
                 }
 
                 Value::Vector(result)
@@ -280,7 +280,7 @@ impl Interpreter {
 
             ASTNode::Assignment { name, value } => {
                 let evaluated_value = self.evaluate_expression(value)?;
-                self.environment.set(name.clone(), evaluated_value.clone())?;
+                self.environment.set(*name.clone(), evaluated_value.clone())?;
                 evaluated_value
             },
 

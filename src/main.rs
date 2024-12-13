@@ -1,3 +1,4 @@
+use ast_node::ASTNode;
 use log::{error, debug};
 use std::io::{self, Write};
 use env_logger::Env;
@@ -49,7 +50,12 @@ enum Commands {
 }
 
 fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
-    print!("Lim {} (Time: {:?}) on {:?}\n", env!("CARGO_PKG_VERSION"), Utc::now(), env::var("TARGET"));
+    print!("Lim {} (Time: {}) on {}({})\n", 
+        env!("CARGO_PKG_VERSION"), 
+        Utc::now().to_rfc2822(), 
+        env::consts::OS, 
+        env::consts::ARCH
+    );
 
     loop {
         let mut text = String::new();
