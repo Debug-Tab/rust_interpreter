@@ -301,13 +301,8 @@ impl Interpreter {
             },
 
             ASTNode::FunctionCall { function, arguments } => {
-                if let Some(function) = function {
-                    let result = self.evaluate_function_call(self.get_variable_value(function)?, arguments)?;
-                    result
-                } else {
-                    return Err(format!("Expected String, found: null"))
-                }
-                
+                let func = self.evaluate_expression(&*function.clone())?;
+                self.evaluate_function_call(func, arguments)?
             },
 
             _ => return Err(format!("{:?} is not an expression", node))

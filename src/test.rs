@@ -97,10 +97,10 @@ mod tests {
     fn test_function_definition_and_call() {
         let program = r#"
             let add;
-            add = lambda (a, b) {
-                a + b
+            add = lambda (a) {
+                lambda (b) [a + b]
             };
-            add(3, 4)
+            add(3)(4)[0]
         "#;
         assert_eq!(interpret(program).unwrap(), Value::Number(7.0));
     }

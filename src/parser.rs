@@ -262,34 +262,48 @@ impl Parser {
     }
 
     fn multiplicative_expression(&mut self) -> Result<ASTNode, String> {
-        let mut node = self.unary_expression()?;
+        let mut node = self.prefix_expression()?;
 
         while let Some(token @ (Token::Mul | Token::Div | Token::Mod)) = self.cur_token_clone() {
             self.next();
-            let right = self.unary_expression()?;
+            let right = self.prefix_expression()?;
             node = ASTNode::BinaryOperation { operator: token, left: node.into(), right: right.into() };
         }
 
         Ok(node)
     }
 
-    fn unary_expression(&mut self) -> Result<ASTNode, String> {
+    fn prefix_expression(&mut self) -> Result<ASTNode, String> {
         if let Some(token @ (Token::Plus | Token::Minus | Token::Not)) = self.cur_token_clone() {
             self.next();
-            let expr = self.index_expression()?;
+            let expr = self.suffix_expression()?;
             Ok(ASTNode::UnaryOperation { operator: token, operand: Box::new(expr) })
         } else {
-            self.index_expression()
+            self.suffix_expression()
         }
     }
 
-    fn index_expression(&mut self) -> Result<ASTNode, String> {
+    fn suffix_expression(&mut self) -> Result<ASTNode, String> {
         let mut result = self.primary()?;
 
-        while self.cur_token_equals(&Token::LBracket) {
-            self.next();
-            result = ASTNode::Index { expression: Box::new(result), index: Box::new(self.expression()?) };
-            self.eat(Token::RBracket)?;
+        while self.cur_token_in(&[Token::LParen, Token::LBracket]) {
+            match self.cur_token() {
+                Some(Token::LParen) => {
+                    result = ASTNode::FunctionCall { 
+                        function: Box::new(result), 
+                        arguments: self.tuple()?,
+                    }
+                },
+                Some(Token::LBracket) => {
+                    self.next();
+                    result = ASTNode::Index { 
+                        expression: Box::new(result), 
+                        index: Box::new(self.expression()?) 
+                    };
+                    self.eat(Token::RBracket)?;
+                },
+                _ => return Err(format!("[ITIWT] Unknown suffix token: {:?}", self.cur_token())), // In theory, it won't trigger
+            }
         }
 
         Ok(result)
@@ -301,12 +315,7 @@ impl Parser {
         match token.clone() {
             Token::Identifier(name) => {
                 self.next();
-
-                if self.cur_token_equals(&Token::LParen) {
-                    self.function_call(*name)
-                } else {
-                    Ok(ASTNode::Identifier(name))
-                }
+                Ok(ASTNode::Identifier(name))
             },
 
             Token::Float(_) | Token::String(_) | Token::True | Token::False | Token::Null => {
@@ -337,16 +346,6 @@ impl Parser {
 
             _ => Err(format!("[Parser] Unexpected token: {}({})!", self.cur_token_unwrap(), self.pos)),
         }
-    }
-
-
-    fn function_call(&mut self, name: String) -> Result<ASTNode, String> {
-        Ok(
-            ASTNode::FunctionCall {
-                function: Some(name),
-                arguments: self.tuple()?,
-            }
-        )
     }
 
     fn lambda_function(&mut self) -> Result<ASTNode, String> {

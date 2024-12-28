@@ -10,7 +10,7 @@ pub enum ASTNode {
     },
 
     FunctionCall {
-        function: Option<String>,
+        function: Box<ASTNode>,
         arguments: Box<Vec<ASTNode>>,
     },
 
