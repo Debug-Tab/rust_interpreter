@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum ASTNode {
-    FunctionDefinition {
+    Function {
         params: Vec<String>,
         body: Box<ASTNode>,
     },
@@ -70,19 +70,4 @@ pub enum ASTNode {
     Break,
 }
 
-pub trait AstRef {
-    fn as_ast(&self) -> &ASTNode;
-}
-
-impl AstRef for ASTNode {
-    fn as_ast(&self) -> &ASTNode {
-        self
-    }
-}
-
-impl AstRef for Box<ASTNode> {
-    fn as_ast(&self) -> &ASTNode {
-        self.as_ref()
-    }
-}
 

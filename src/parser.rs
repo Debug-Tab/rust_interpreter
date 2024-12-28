@@ -192,7 +192,11 @@ impl Parser {
                     self.eat(Token::Colon)?;
                     let right = self.expression()?;
 
-                    node = ASTNode::Conditional { condition: Box::new(node), true_branch: Box::new(left), false_branch: Some(Box::new(right)) };
+                    node = ASTNode::Conditional { 
+                        condition: Box::new(node), 
+                        true_branch: Box::new(left), 
+                        false_branch: Some(Box::new(right)) 
+                    };
                 }
 
                 Ok(node)
@@ -210,7 +214,11 @@ impl Parser {
         while self.cur_token_equals(&Token::Or) {
             self.next();
             let right = self.logical_and()?;
-            node = ASTNode::LogicalOperation { operator: Token::Or, left: Box::new(node), right: Box::new(right) };
+            node = ASTNode::LogicalOperation { 
+                operator: Token::Or, 
+                left: Box::new(node), 
+                right: Box::new(right) 
+            };
         }
 
         Ok(node)
@@ -222,7 +230,11 @@ impl Parser {
         while self.cur_token_equals(&Token::And) {
             self.next();
             let right = self.equality()?;
-            node = ASTNode::LogicalOperation { operator: Token::And, left: Box::new(node), right: Box::new(right) };
+            node = ASTNode::LogicalOperation { 
+                operator: Token::And, 
+                left: Box::new(node), 
+                right: Box::new(right) 
+            };
         }
 
         Ok(node)
@@ -234,7 +246,11 @@ impl Parser {
         while let Some(token @ (Token::Equal | Token::UnEqual)) = self.cur_token_clone() {
             self.next();
             let right = self.relational()?;
-            node = ASTNode::LogicalOperation { operator: token, left: Box::new(node), right: Box::new(right) };
+            node = ASTNode::LogicalOperation { 
+                operator: token, 
+                left: Box::new(node), 
+                right: Box::new(right) 
+            };
         }
 
         Ok(node)
@@ -246,7 +262,11 @@ impl Parser {
         while let Some(token @ (Token::Greater | Token::Less | Token::GreaterEqual | Token::LessEqual)) = self.cur_token_clone() {
             self.next();
             let right = self.additive_expression()?;
-            node = ASTNode::LogicalOperation { operator: token, left: Box::new(node), right: Box::new(right) };
+            node = ASTNode::LogicalOperation { 
+                operator: token, 
+                left: Box::new(node), 
+                right: Box::new(right) 
+            };
         }
 
         Ok(node)
@@ -258,7 +278,11 @@ impl Parser {
         while let Some(token @ (Token::Plus | Token::Minus)) = self.cur_token_clone() {
             self.next();
             let right = self.multiplicative_expression()?;
-            node = ASTNode::BinaryOperation { operator: token, left: node.into(), right: right.into() };
+            node = ASTNode::BinaryOperation { 
+                operator: token, 
+                left: node.into(), 
+                right: right.into() 
+            };
         }
 
         Ok(node)
@@ -270,7 +294,11 @@ impl Parser {
         while let Some(token @ (Token::Mul | Token::Div | Token::Mod)) = self.cur_token_clone() {
             self.next();
             let right = self.prefix_expression()?;
-            node = ASTNode::BinaryOperation { operator: token, left: node.into(), right: right.into() };
+            node = ASTNode::BinaryOperation { 
+                operator: token, 
+                left: node.into(), 
+                right: right.into() 
+            };
         }
 
         Ok(node)
@@ -280,7 +308,10 @@ impl Parser {
         if let Some(token @ (Token::Plus | Token::Minus | Token::Not)) = self.cur_token_clone() {
             self.next();
             let expr = self.suffix_expression()?;
-            Ok(ASTNode::UnaryOperation { operator: token, operand: Box::new(expr) })
+            Ok(ASTNode::UnaryOperation { 
+                operator: token, 
+                operand: Box::new(expr) 
+            })
         } else {
             self.suffix_expression()
         }
@@ -359,7 +390,7 @@ impl Parser {
 
         let body = self.statement()?;
 
-        Ok(ASTNode::FunctionDefinition {
+        Ok(ASTNode::Function {
                 params,
                 body: Box::new(body),
             },

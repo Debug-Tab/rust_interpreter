@@ -8,7 +8,7 @@ use crate::token::Token;
 use crate::value::Value;
 use crate::control_flow::ControlFlow;
 use crate::builtin::hole_func;
-use crate::ast_node::{ASTNode, AstRef};
+use crate::ast_node::ASTNode;
 use crate::environment::Environment;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -292,7 +292,7 @@ impl Interpreter {
                 evaluated_value
             },
 
-            ASTNode::FunctionDefinition { params, body } => {
+            ASTNode::Function { params, body } => {
                 Value::Function{
                     params: params.clone(),
                     body: Box::clone(body),
@@ -312,7 +312,7 @@ impl Interpreter {
     }
     
 
-    fn evaluate_function_call<T: AstRef>(&mut self, function: Value, arguments: &[T]) -> Result<Value, String> {
+    fn evaluate_function_call(&mut self, function: Value, arguments: &[ASTNode]) -> Result<Value, String> {
 
         if let Value::Function { params, body, closure } = function.clone() {
             if params.len() != arguments.len() {
@@ -325,7 +325,7 @@ impl Interpreter {
             };
             
             for (param, arg) in params.iter().zip(arguments) {
-                let arg_value = self.evaluate_expression(arg.as_ast())?;
+                let arg_value = self.evaluate_expression(arg)?;
                 new_env.values.insert(param.clone(), arg_value);
             }
             new_env.define("self".to_string(), function.clone())?;
@@ -342,7 +342,7 @@ impl Interpreter {
 
         } else if let Value::Hole(id) = function {
             let args: Vec<Value> = arguments.iter()
-                .map(|arg| self.evaluate_expression(arg.as_ast()))
+                .map(|arg| self.evaluate_expression(arg))
                 .collect::<Result<Vec<Value>, String>>()?;
             hole_func(id, args)
 

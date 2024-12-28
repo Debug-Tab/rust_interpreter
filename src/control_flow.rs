@@ -16,14 +16,3 @@ impl ControlFlow {
         }
     }
 }
-
-impl From<ControlFlow> for Value {
-    fn from(value: ControlFlow) -> Self {
-        match value {
-            ControlFlow::Value(v) => v,
-            ControlFlow::Continue => Value::Null,
-            ControlFlow::Return(v) => v,
-            ControlFlow::Break => Value::Null,
-        }
-    }
-}
