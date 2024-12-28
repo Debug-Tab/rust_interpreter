@@ -50,7 +50,7 @@ enum Commands {
 }
 
 fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
-    print!("Lim {} (Time: {}) on {}({})\n", 
+    print!("Lim {} (Time: {}) on {} ({})\n", 
         env!("CARGO_PKG_VERSION"), 
         Utc::now().to_rfc2822(), 
         env::consts::OS, 
@@ -122,9 +122,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             Commands::Build { input, output } => {
                 let text = std::fs::read_to_string(&input)?;
-                let mut parser = crate::parser::Parser::new(text)?;
 
-                match parser.parse() {
+                match crate::parser::Parser::parse(text) {
                     Ok(result) => {
                         let path = match output {
                             Some(path) => {

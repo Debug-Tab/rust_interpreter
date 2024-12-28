@@ -13,11 +13,14 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(text: String) -> Result<Self, String> {
-        Ok(Self { 
+    pub fn parse(text: String) -> Result<ASTNode, String> {
+        let mut parser = Self { 
             tokens: Lexer::tokenize(text)?, 
             pos: 0,
-        })
+        };
+
+        debug!("{:?}", parser.tokens);
+        parser.statements()
     }
 
     fn cur_token(&mut self) -> Option<&Token> {
@@ -80,32 +83,32 @@ impl Parser {
         Ok(())
     }
 
-    pub fn parse(&mut self) -> Result<ASTNode, String> {
-        debug!("{:?}", self.tokens);
-        self.statements()
-    }
-
     fn statements(&mut self) -> Result<ASTNode, String> {
         let mut statements = vec![];
-        let mut will_return = false;
+
+        if self.cur_token_in(&[Token::RBrace, Token::EOF]) {
+            return Ok(ASTNode::Block { statements: Box::new(statements), will_return: true });
+        }
+
+        let mut stmt = self.statement()?;
+        statements.push(stmt);
         
-        while self.cur_token_is_not(&[Token::EOF, Token::RBrace]) { // todo: not true
-            let stmt = self.statement()?;
-            statements.push(stmt);
-            
-            match self.cur_token_unwrap() {
-                Token::Semicolon => {
-                    self.next();
-                },
-                Token::RBrace | Token::EOF => {
-                    will_return = true;
-                    break;
-                },
-                _ => return Err(format!("Expected semicolon, found: {}!", self.cur_token_unwrap())),
+        while self.cur_token_equals(&Token::Semicolon) {
+            self.next();
+
+            if self.cur_token_in(&[Token::RBrace, Token::EOF]) {
+                return Ok(ASTNode::Block { statements: Box::new(statements), will_return: false });
             }
+            if self.cur_token_equals(&Token::Semicolon) {
+                self.next();
+                continue;
+            }
+
+            stmt = self.statement()?;
+            statements.push(stmt);
         }
         
-        Ok(ASTNode::Block { statements: Box::new(statements), will_return })
+        Ok(ASTNode::Block { statements: Box::new(statements), will_return: true })
     }
 
     fn statement(&mut self) -> Result<ASTNode, String> {

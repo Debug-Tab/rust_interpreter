@@ -30,7 +30,7 @@ impl Interpreter {
 
 
     pub fn interpret(&mut self, text: String) -> Result<ControlFlow, String> {
-        let ast = Parser::new(text)?.parse()?;
+        let ast = Parser::parse(text)?;
         debug!("ast: {:?}", ast);
         Ok(self.evaluate(&ast)?)
     }

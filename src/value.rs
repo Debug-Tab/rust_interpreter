@@ -1,4 +1,4 @@
-use crate::{ast_node::ASTNode, token::Token};
+use crate::ast_node::ASTNode;
 use crate::environment::Environment;
 
 use serde::{Serialize, Deserialize};
@@ -62,7 +62,7 @@ impl fmt::Display for Value {
                 Value::Vector(vector) => {
                     format!("[{}]", vector.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(", "))
                 },
-                Value::Function { .. } => "Function".to_string(),
+                Value::Function { params, body, .. } => format!("<Function: {:?} {{ {:?} }}>", params, body),
                 Value::Hole(v) => format!("<Builtin Function (Hole{})>", v),
                 Value::Null => "Null".to_string(),
                 Value::Nothing => String::new(),
