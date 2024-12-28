@@ -2,16 +2,17 @@ use crate::value::Value;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum ControlFlow {
-    Continue(Value),
+    Value(Value),
+    Continue,
     Return(Value),
     Break,
 }
 
 impl ControlFlow {
-    pub fn unwrap(self) -> Value {
+    pub fn value(self) -> Result<Value, String> {
         match self {
-            ControlFlow::Continue(value) | ControlFlow::Return(value) => value,
-            ControlFlow::Break => Value::Null,
+            ControlFlow::Value(value) => Ok(value),
+            _ => Err(format!("Need expression, got {:?}!", self)),
         }
     }
 }
@@ -19,7 +20,8 @@ impl ControlFlow {
 impl From<ControlFlow> for Value {
     fn from(value: ControlFlow) -> Self {
         match value {
-            ControlFlow::Continue(v) => v,
+            ControlFlow::Value(v) => v,
+            ControlFlow::Continue => Value::Null,
             ControlFlow::Return(v) => v,
             ControlFlow::Break => Value::Null,
         }

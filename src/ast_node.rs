@@ -33,6 +33,7 @@ pub enum ASTNode {
 
     Block {
         statements: Box<Vec<ASTNode>>,
+        will_return: bool,
     },
 
     Assignment {

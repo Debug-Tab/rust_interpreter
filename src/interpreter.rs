@@ -29,25 +29,32 @@ impl Interpreter {
     }
 
 
-    pub fn interpret(&mut self, text: String) -> Result<Value, String> {
+    pub fn interpret(&mut self, text: String) -> Result<ControlFlow, String> {
         let ast = Parser::new(text)?.parse()?;
         debug!("ast: {:?}", ast);
-        Ok(self.evaluate(&ast)?.unwrap())
+        Ok(self.evaluate(&ast)?)
     }
 
     pub fn evaluate(&mut self, node: &ASTNode) -> Result<ControlFlow, String> {
         let result = match node {
-            ASTNode::Block { statements } => {
-                let mut result = ControlFlow::Continue(Value::Null);
+            ASTNode::Block { statements, will_return } => {
+                let mut result = ControlFlow::Continue;
 
                 for statement in *statements.clone() {
                     result = self.evaluate(&statement)?;
                     if let ControlFlow::Return(_) = result {
+                        return Ok(result);
+                    } else if result == ControlFlow::Break {
                         break;
                     }
                 }
 
-                result
+                if *will_return {
+                    result
+                } else {
+                    ControlFlow::Continue
+                }
+                
             },
 
 
@@ -61,35 +68,36 @@ impl Interpreter {
                     _ => return Err(format!("Cannot binding this: {:?}", ast)),
                 }
                 
-                ControlFlow::Continue(Value::Null)
+                ControlFlow::Continue
             },
 
             ASTNode::Conditional { condition, true_branch, false_branch } => {
                 let condition_value = self.evaluate(condition)?;
-                if let Value::Boolean(true) = condition_value.unwrap() {
+
+                if let Value::Boolean(true) = condition_value.value()? {
                     self.evaluate(true_branch)?
                 } else {
                     if let Some(false_branch) = false_branch {
                         self.evaluate(false_branch)?
                     } else {
-                        ControlFlow::Continue(Value::Null)
+                        ControlFlow::Continue
                     }
                 }
             },
 
             ASTNode::Loop { condition, body } => {
-                let mut result = ControlFlow::Continue(Value::Null);
+                let mut result;
 
                 while let Value::Boolean(true) = self.evaluate_expression(condition)? {
                     result = self.evaluate(body)?;
                     match result {
                         ControlFlow::Return(_) => return Ok(result),
-                        ControlFlow::Continue(_) => (),
                         ControlFlow::Break => break,
+                        ControlFlow::Continue | ControlFlow::Value(_)=> (),
                     }
                 }
 
-                result
+                ControlFlow::Continue
             },
 
             ASTNode::Break => {
@@ -98,11 +106,11 @@ impl Interpreter {
 
             ASTNode::Return(expr) => {
                 let value = self.evaluate_expression(expr)?;
-                ControlFlow::Return(value)
+                return Ok(ControlFlow::Return(value))
             },
 
             _ => {
-                ControlFlow::Continue(self.evaluate_expression(node)?)
+                ControlFlow::Value(self.evaluate_expression(node)?)
             },
         };
         
@@ -328,18 +336,21 @@ impl Interpreter {
             new_env.define("self".to_string(), function.clone())?;
             
             let old_env = std::mem::replace(&mut self.environment, Box::new(new_env));
-            let result = self.evaluate(&body);
-            self.environment = old_env;
             
-            match result {
-                Ok(c) => Ok(c.unwrap()),
-                Err(e) => Err(e),
-            } 
+            let result = match self.evaluate(&body)? {
+                ControlFlow::Return(v) | ControlFlow::Value(v) => v,
+                _ => Value::Null,
+            };
+
+            self.environment = old_env;
+            Ok(result)
+
         } else if let Value::Hole(id) = function {
             let args: Vec<Value> = arguments.iter()
                 .map(|arg| self.evaluate_expression(arg.as_ast()))
                 .collect::<Result<Vec<Value>, String>>()?;
-            return hole_func(id, args);
+            hole_func(id, args)
+
         } else {
             Err("Attempted to call a non-function value".to_string())
         }

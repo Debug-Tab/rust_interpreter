@@ -1,7 +1,7 @@
 use crate::Token;
 
 use serde::{Serialize, Deserialize};
-use log::{debug, error};
+use log::debug;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Lexer {
@@ -15,11 +15,6 @@ impl Lexer {
 			tokens: Vec::new(),
 			pos: 0,
 		}
-	}
-
-	fn error(&self) -> ! {
-		error!("Invalid character!");
-		panic!("Invalid character!");
 	}
 
 	pub fn tokenize(text: String) -> Result<Vec<Token>, String> {
@@ -39,12 +34,13 @@ impl Lexer {
 					tokens.push(Token::String(lexer.string(&mut current_char)?.into()));
 				}
 				ch if ch.is_digit(10) || ch == '.' => {
-					tokens.push(Token::Float(lexer.number(&mut current_char)));
+					tokens.push(Token::Float(lexer.number(&mut current_char)?));
 				},
 				ch if ch.is_alphabetic() || ch == '_' => {
 					let id = lexer.identifier(&mut current_char);
 					match id.as_str() {
 						"fn" => tokens.push(Token::FN),
+						"lambda" => tokens.push(Token::Lambda),
 						"return" => tokens.push(Token::Return),
 
 						"true" => tokens.push(Token::True),
@@ -81,7 +77,7 @@ impl Lexer {
 						tokens.push(Token::And);
 						current_char.next();
 					} else {
-						lexer.error();
+						return Err(format!("Unknown symbol: &+{:?}", current_char.peek()));
 					}
 				},
 				'|' => {
@@ -90,7 +86,7 @@ impl Lexer {
 						tokens.push(Token::Or);
 						current_char.next();
 					} else {
-						lexer.error();
+						return Err(format!("Unknown symbol: |+{:?}", current_char.peek()));
 					}
                 },
 				'>' => {
@@ -129,26 +125,30 @@ impl Lexer {
 						tokens.push(Token::Not);
 					}
 				},
-				_ => lexer.error(),
+				_ => return Err(format!("Unexpected symbols: {:?}", ch)),
 			}
 		}
 		tokens.push(Token::EOF);
 		Ok(tokens)
 	}
 
-	fn number(&self, chars: &mut std::iter::Peekable<std::str::Chars>) -> f64 {
-		let mut result = String::new();
+	fn number(&self, chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<f64, String> {
+		let mut str = String::new();
 
 		while let Some(&ch) = chars.peek() {
 			if ch.is_digit(10) || ch == '.' {
-				result.push(ch);
+				str.push(ch);
 				chars.next();
 			} else {
 				break;
 			}
 		}
 
-		result.parse().unwrap_or_else(|_| self.error())
+		let result = str.parse::<f64>();
+		match result {
+			Ok(n) => Ok(n),
+			Err(e) => Err(e.to_string()),
+		}
 	}
 
 	fn string(&self, chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<String, String> {

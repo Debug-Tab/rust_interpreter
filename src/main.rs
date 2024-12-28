@@ -1,4 +1,3 @@
-use ast_node::ASTNode;
 use log::{error, debug};
 use std::io::{self, Write};
 use env_logger::Env;
@@ -23,6 +22,7 @@ mod test;
 
 use token::Token;
 use interpreter::Interpreter;
+use control_flow::ControlFlow;
 
 /// An Interpreter for Lim
 #[derive(Parser, Debug)]
@@ -64,13 +64,15 @@ fn input_loop(interpreter: &mut Interpreter) -> Result<(), Box<dyn Error>> {
         io::stdout().flush()?;
 
         io::stdin().read_line(&mut text)?;
-        
-        if text.trim().is_empty() {
-            continue;
-        }
 
         match interpreter.interpret(text) {
-            Ok(result) => println!("{}", result),
+            Ok(result) => {
+                match result {
+                    ControlFlow::Value(value) => println!("{}", value),
+                    ControlFlow::Continue => (),
+                    _ => error!("Need expression, got {:?}!", result),
+                }
+            },
             Err(e) => error!("Error: {}", e),
         }
     }
@@ -96,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let bytes = fs::read(input)?;
 
                     match interpreter.evaluate(&bincode::deserialize(&bytes[..]).unwrap()) {
-                        Ok(result) => println!("{}", result.unwrap()),
+                        Ok(result) => println!("{}", result.value()?),
                         Err(e) => error!("Error: {}", e),
                     }
                 
@@ -104,7 +106,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let text = std::fs::read_to_string(input)?;
 
                     match interpreter.interpret(text) {
-                        Ok(result) => println!("{}", result),
+                        Ok(result) => {
+                            match result {
+                                ControlFlow::Value(value) => println!("{}", value),
+                                ControlFlow::Continue => (),
+                                _ => error!("Need expression, got {:?}!", result),
+                            }
+                        },
                         Err(e) => error!("Error: {}", e),
                     }
                 }

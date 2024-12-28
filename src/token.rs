@@ -1,7 +1,6 @@
 use derive_more::Display;
 use serde::{Serialize, Deserialize};
 
-use crate::value::Value;
 
 #[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Display)]
 pub enum Token {
@@ -64,6 +63,7 @@ pub enum Token {
 
     // 函数
     FN,
+    Lambda,
     Arrow,
     Comma,
     Return,
@@ -75,17 +75,4 @@ pub enum Token {
     If,
     Else,
     While,
-}
-
-impl Token {
-    pub fn to_value(&self) -> Result<Value, String> {
-        Ok(match self {
-            Token::Float(v) => Value::Number(*v),
-            Token::String(str) => Value::String(str.clone()),
-            Token::True => Value::Boolean(true),
-            Token::False => Value::Boolean(false),
-            Token::Null => Value::Null,
-            _ => return Err(format!("Could not convert this to Value: {:?}", self.clone()))
-        })
-    }
 }

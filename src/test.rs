@@ -5,7 +5,7 @@ mod tests {
 
     fn interpret(text: &str) -> Result<Value, String> {
         let mut interpreter = Interpreter::new();
-        interpreter.interpret(text.to_string())
+        interpreter.interpret(text.to_string())?.value()
     }
 
     fn assert_float_eq(a: f64, b: f64) {
@@ -97,7 +97,7 @@ mod tests {
     fn test_function_definition_and_call() {
         let program = r#"
             let add;
-            add = fn (a, b) {
+            add = lambda (a, b) {
                 a + b
             };
             add(3, 4)
@@ -127,8 +127,8 @@ mod tests {
     fn test_closure() {
         let program = r#"
             let make_adder;
-            make_adder = fn (x) {
-                fn(y) {
+            make_adder = lambda (x) {
+                lambda (y) {
                     x + y
                 }
             };

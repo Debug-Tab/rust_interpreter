@@ -1,4 +1,4 @@
-use crate::ast_node::ASTNode;
+use crate::{ast_node::ASTNode, token::Token};
 use crate::environment::Environment;
 
 use serde::{Serialize, Deserialize};
