@@ -45,7 +45,7 @@ impl Lexer {
 
 						"true" => tokens.push(Token::True),
 						"false" => tokens.push(Token::False),
-						"null" => tokens.push(Token::Null),
+						// "null" => tokens.push(Token::Null),
 
 						"let" => tokens.push(Token::Let),
 						"if" => tokens.push(Token::If),

@@ -13,7 +13,7 @@ pub enum Token {
 
     True,
     False,
-    Null,
+    // Null, // ban the null
 
     // 算数运算符
     Plus,

@@ -19,7 +19,7 @@ impl Parser {
             pos: 0,
         };
 
-        debug!("{:?}", parser.tokens);
+        debug!("Tokens: {:?}", parser.tokens);
         parser.statements()
     }
 
@@ -112,15 +112,15 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<ASTNode, String> {
-        debug!("{:?}", self.cur_token_clone());
-
         if let Some(token) = self.cur_token() {
             match *token {
                 Token::If => {
                     self.next();
+
                     let condition = Box::new(self.expression()?);
                     let true_branch = Box::new(self.statement()?);
                     let mut false_branch = None;
+                    
                     if self.cur_token_equals(&Token::Else) {
                         self.next();
                         false_branch = Some(Box::new(self.statement()?));
@@ -172,34 +172,34 @@ impl Parser {
         match self.cur_token() {
             Some(Token::Lambda) => self.lambda_function(),
             _ => {
-                let mut node = self.assignment()?;
+                let mut left = Box::new(self.assignment()?);
 
                 if self.cur_token_equals(&Token::Assign) {
                     self.next();
-                    let value = Box::new(self.expression()?);
+                    let right = Box::new(self.expression()?);
 
-                    match node {
-                        ASTNode::Identifier(name) => {
-                            node = ASTNode::Assignment { name, value };
+                    match *left {
+                        ASTNode::Identifier(_) | ASTNode::Index { .. } => {
+                            left = ASTNode::Assignment { left, right } .into();
                         },
                         _ => {
-                            return Err(format!("Invalid assignment to: {:?}!", node.clone()));
+                            return Err(format!("Invalid assignment to: {:?}!", left.clone()));
                         }
                     }
                 } else if self.cur_token_equals(&Token::Question) {
                     self.eat(Token::Question)?;
-                    let left = self.expression()?;
+                    let true_branch = self.expression()?.into();
                     self.eat(Token::Colon)?;
-                    let right = self.expression()?;
+                    let false_branch = self.expression()?.into();
 
-                    node = ASTNode::Conditional { 
-                        condition: Box::new(node), 
-                        true_branch: Box::new(left), 
-                        false_branch: Some(Box::new(right)) 
-                    };
+                    left = ASTNode::Conditional { 
+                        condition: left, 
+                        true_branch, 
+                        false_branch: Some(false_branch) 
+                    }.into();
                 }
 
-                Ok(node)
+                Ok(*left)
             }
         }
     }
@@ -352,16 +352,18 @@ impl Parser {
                 Ok(ASTNode::Identifier(name))
             },
 
-            Token::Float(_) | Token::String(_) | Token::True | Token::False | Token::Null => {
+            Token::Float(_) | Token::String(_) | Token::True | Token::False /*| Token::Null*/ => {
                 self.next();
+
                 let result = match token {
                     Token::Float(v) => Value::Number(v),
                     Token::String(str) => Value::String(str),
                     Token::True => Value::Boolean(true),
                     Token::False => Value::Boolean(false),
-                    Token::Null => Value::Null,
-                    _ => return Err(format!("Could not convert this to Value: {:?}", token)),
+                    // Token::Null => Value::Null,
+                    _ => return Err(format!("[ITIWT] Could not convert this to Value: {:?}", token)),  // In theory, it won't trigger
                 };
+
                 Ok(ASTNode::Literal(result))
             },
 
@@ -386,8 +388,6 @@ impl Parser {
         self.eat(Token::Lambda)?;
 
         let params = self.identifier_list()?;
-        debug!("Params: {:?}", params);
-
         let body = self.statement()?;
 
         Ok(ASTNode::Function {

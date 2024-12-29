@@ -17,7 +17,7 @@ pub fn hole_func(id: u32, args: Vec<Value>) -> Result<Value, String> {
             if let Value::String(format) = &args[0] {
                 let formatted = format_string(format, &args[1..])?;
                 print!("{}", formatted);
-                Ok(Value::Nothing)
+                Ok(Value::Null)
             } else {
                 Err(format!("The first argument must be a string, actually found: {}", args[0]))
             }

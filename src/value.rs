@@ -18,7 +18,6 @@ pub enum Value {
     Tuple(Vec<Value>),
     Vector(Vec<Value>),
     Null,
-    Nothing,
 }
 
 impl Value {
@@ -64,8 +63,7 @@ impl fmt::Display for Value {
                 },
                 Value::Function { params, body, .. } => format!("<Function: {:?} {{ {:?} }}>", params, body),
                 Value::Hole(v) => format!("<Builtin Function (Hole{})>", v),
-                Value::Null => "Null".to_string(),
-                Value::Nothing => String::new(),
+                Value::Null => String::new(),
             }
         )
     }

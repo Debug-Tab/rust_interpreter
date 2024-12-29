@@ -31,7 +31,7 @@ impl Interpreter {
 
     pub fn interpret(&mut self, text: String) -> Result<ControlFlow, String> {
         let ast = Parser::parse(text)?;
-        debug!("ast: {:?}", ast);
+        debug!("AST: {:?}", ast);
         Ok(self.evaluate(&ast)?)
     }
 
@@ -61,9 +61,12 @@ impl Interpreter {
             ASTNode::Let { ast } => {
                 match *ast.clone() {
                     ASTNode::Identifier(name) => self.environment.define(*name, Value::Null)?,
-                    ASTNode::Assignment { name, value } => {
-                        let value = self.evaluate_expression(&value)?;
-                        self.environment.define(*name, value)?
+                    ASTNode::Assignment { left, .. } => {
+                        if let ASTNode::Identifier(name) = *left {
+                            self.environment.define(*name, Value::Null)?;
+                            self.evaluate_expression(ast);
+                        }
+                        return Err(format!("Cannot binding this: {:?}", ast));
                     },
                     _ => return Err(format!("Cannot binding this: {:?}", ast)),
                 }
@@ -110,7 +113,13 @@ impl Interpreter {
             },
 
             _ => {
-                ControlFlow::Value(self.evaluate_expression(node)?)
+                let expression = self.evaluate_expression(node)?;
+                if expression == Value::Null {
+                    ControlFlow::Continue
+                } else {
+                    ControlFlow::Value(expression)
+                }
+                
             },
         };
         
@@ -240,7 +249,12 @@ impl Interpreter {
             },
 
             ASTNode::Identifier(name) => {
-                self.get_variable_value(name)?
+                let result = self.get_variable_value(name)?;
+                if result == Value::Null {
+                    return Err(format!("Prohibit obtaining a variable with a null value: {}!", *name));
+                } else {
+                    result
+                }
             },
 
             ASTNode::Tuple(tuple) => {
@@ -286,10 +300,19 @@ impl Interpreter {
                 }
             },
 
-            ASTNode::Assignment { name, value } => {
-                let evaluated_value = self.evaluate_expression(value)?;
-                self.environment.set(*name.clone(), evaluated_value.clone())?;
-                evaluated_value
+            ASTNode::Assignment { left, right } => {
+                match *left.clone() {
+                    ASTNode::Identifier(name) => {
+                        let evaluated_value = self.evaluate_expression(&right)?;
+                        self.environment.set(*name, evaluated_value.clone())?;
+                        evaluated_value
+                    },
+                    ASTNode::Index { expression, index } => {   //todo: think think
+                        Value::Null
+                    },
+                    _ => return Err(format!("Cannot assign value to {:?}!", left)),
+                }
+                
             },
 
             ASTNode::Function { params, body } => {

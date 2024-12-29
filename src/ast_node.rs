@@ -37,8 +37,8 @@ pub enum ASTNode {
     },
 
     Assignment {
-        name: Box<String>,
-        value: Box<ASTNode>,
+        left: Box<ASTNode>,
+        right: Box<ASTNode>,
     },
 
     Let {
